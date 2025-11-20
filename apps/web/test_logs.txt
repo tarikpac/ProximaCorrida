@@ -1,0 +1,10 @@
+Inputs before calc: Distance=10, Time=, Pace=05:00
+Inputs before calc: Distance=10, Time=, Pace=05:00
+Clicked Calculate button
+No error message visible
+Result container visible: true
+Result text: 00:50:00 
+Clicked Calculate button
+No error message visible
+Result container visible: true
+Result text: 00:50:00 

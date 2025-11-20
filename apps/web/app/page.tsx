@@ -7,6 +7,8 @@ import { Footer } from "@/components/ui/footer";
 
 import { Suspense } from "react";
 
+export const dynamic = 'force-dynamic';
+
 export default function Home() {
   return (
     <main className="min-h-screen bg-zinc-950 flex flex-col">

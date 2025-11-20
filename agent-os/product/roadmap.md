@@ -1,7 +1,7 @@
 # Product Roadmap
 
 1. [x] **Advanced Search & Filters** — Implement filtering by State, Region, City, Date, and Distance to support the national database. `M`
-2. [ ] **Pace Calculator** — Create a dedicated "Calculadora de Pace" page with real-time conversion (Pace/Time/Speed), standard distance predictions, and mobile-first UI. `S`
+2. [x] **Pace Calculator** — Create a dedicated "Calculadora de Pace" page with real-time conversion (Pace/Time/Speed), standard distance predictions, and mobile-first UI. `S`
 3. [ ] **Social Sharing** — Implement a generic share button using Web Share API for mobile and a modal fallback (Copy Link, WhatsApp, Telegram) for desktop. `S`
 4. [ ] **Institutional Pages** — Create "About/How it Works" page (trust/SEO) and "All States" page (`/estados`) with summary cards for national expansion. `S`
 5. [ ] **Web Push Notifications (Core)** — Implement Service Worker + VAPID + Push API. Create backend storage for subscriptions and user preference UI for selecting states. `M`
