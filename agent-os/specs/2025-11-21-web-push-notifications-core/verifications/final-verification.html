@@ -1,0 +1,97 @@
+# Verification Report: Web Push Notifications (Core)
+
+**Spec:** `2025-11-21-web-push-notifications-core`
+**Date:** 2025-11-21
+**Verifier:** implementation-verifier
+**Status:** ✅ Passed
+
+---
+
+## Executive Summary
+
+The core infrastructure for Web Push Notifications has been successfully implemented and verified. The backend supports
+subscription management and notifications via `web-push`, while the frontend provides a user-friendly interface for
+enabling notifications and managing state preferences. All feature-specific tests are passing, and the implementation
+aligns with the specified requirements and design aesthetics.
+
+---
+
+## 1. Tasks Verification
+
+**Status:** ✅ All Complete
+
+### Completed Tasks
+- [x] Task Group 1: Data Models and Migrations
+- [x] 1.1 Write 2-8 focused tests for PushSubscription model
+- [x] 1.2 Create PushSubscription model
+- [x] 1.3 Create migration for PushSubscription
+- [x] 1.4 Ensure database layer tests pass
+- [x] Task Group 2: Notification Service & API
+- [x] 2.1 Write 2-8 focused tests for Notifications API
+- [x] 2.2 Configure Web Push & Environment
+- [x] 2.3 Create NotificationsService
+- [x] 2.4 Create NotificationsController
+- [x] 2.5 Ensure API layer tests pass
+- [x] Task Group 3: UI & Service Worker
+- [x] 3.1 Write 2-8 focused tests for UI components
+- [x] 3.2 Implement Service Worker
+- [x] 3.3 Create `usePushNotifications` hook
+- [x] 3.4 Create UI Components
+- [x] 3.5 Ensure UI component tests pass
+- [x] Task Group 4: Test Review & Gap Analysis
+- [x] 4.1 Review tests from Task Groups 1-3
+- [x] 4.2 Analyze test coverage gaps for THIS feature only
+- [x] 4.3 Write up to 10 additional strategic tests maximum
+- [x] 4.4 Run feature-specific tests only
+
+### Incomplete or Issues
+None
+
+---
+
+## 2. Documentation Verification
+
+**Status:** ✅ Complete
+
+### Implementation Documentation
+- [x] Task Group 1 Implementation: `tasks.md` (Verified via checklist)
+- [x] Task Group 2 Implementation: `tasks.md` (Verified via checklist)
+- [x] Task Group 3 Implementation: `tasks.md` (Verified via checklist)
+- [x] Task Group 4 Implementation: `tasks.md` (Verified via checklist)
+
+### Missing Documentation
+None
+
+---
+
+## 3. Roadmap Updates
+
+**Status:** ✅ Updated
+
+### Updated Roadmap Items
+- [x] 5. **Web Push Notifications (Core)** — Implement Service Worker + VAPID + Push API. Create backend storage for
+subscriptions and user preference UI for selecting states. `M`
+
+### Notes
+Roadmap updated to reflect the completion of the core push notification infrastructure.
+
+---
+
+## 4. Test Suite Results
+
+**Status:** ✅ All Passing
+
+### Test Summary
+- **Total Tests:** 56 (19 Backend + 37 Frontend)
+- **Passing:** 56
+- **Failing:** 0
+- **Errors:** 0
+
+### Failed Tests
+None - all tests passing.
+
+### Notes
+- **Backend Tests:** 19 tests passed, covering Events, Scraper, and Notifications modules.
+- **Frontend Tests:** 37 tests passed, covering Filters, Homepage, Institutional Pages, and Push Notifications UI.
+- **Push Notification Tests:** Specifically, the E2E tests for the push notification UI flow (Explainer Modal -> Enable
+-> Preferences Modal -> Save) are passing successfully.

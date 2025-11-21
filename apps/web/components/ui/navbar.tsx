@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Timer, Globe, Menu, X } from "lucide-react";
 import { useState } from "react";
+import { NavbarBell } from "@/components/notifications/navbar-bell";
 
 export function Navbar() {
     const pathname = usePathname();
@@ -45,6 +46,12 @@ export function Navbar() {
                             Calendario
                         </Link>
                         <Link
+                            href="/estados"
+                            className={`font-mono text-xs font-bold tracking-widest transition-colors uppercase ${isActive('/estados')}`}
+                        >
+                            Estados
+                        </Link>
+                        <Link
                             href="/calculadora-pace"
                             className={`font-mono text-xs font-bold tracking-widest transition-colors uppercase ${isActive('/calculadora-pace')}`}
                         >
@@ -61,21 +68,28 @@ export function Navbar() {
                     {/* Divider */}
                     <div className="h-4 w-px bg-zinc-800" />
 
-                    {/* Language Selector */}
-                    <button className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors group">
-                        <Globe className="h-4 w-4" />
-                        <span className="font-mono text-xs font-bold">PT</span>
-                    </button>
+                    <div className="flex items-center gap-4">
+                        <NavbarBell />
+
+                        {/* Language Selector */}
+                        <button className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors group">
+                            <Globe className="h-4 w-4" />
+                            <span className="font-mono text-xs font-bold">PT</span>
+                        </button>
+                    </div>
                 </div>
 
-                {/* Mobile Menu Button */}
-                <button
-                    className="md:hidden p-2 text-zinc-400 hover:text-white"
-                    onClick={toggleMobileMenu}
-                    aria-label="Menu mobile"
-                >
-                    {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-                </button>
+                <div className="flex items-center gap-2 md:hidden">
+                    <NavbarBell />
+                    {/* Mobile Menu Button */}
+                    <button
+                        className="p-2 text-zinc-400 hover:text-white"
+                        onClick={toggleMobileMenu}
+                        aria-label="Menu mobile"
+                    >
+                        {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                    </button>
+                </div>
             </div>
 
             {/* Mobile Menu Overlay */}
@@ -90,6 +104,13 @@ export function Navbar() {
                         onClick={() => setIsMobileMenuOpen(false)}
                     >
                         Calendario
+                    </Link>
+                    <Link
+                        href="/estados"
+                        className={`font-mono text-sm font-bold tracking-widest uppercase py-2 ${isActive('/estados')}`}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                        Estados
                     </Link>
                     <Link
                         href="/calculadora-pace"

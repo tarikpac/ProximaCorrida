@@ -21,6 +21,7 @@ describe('EventsService Search Logic', () => {
             range: jest.fn().mockReturnThis(),
             limit: jest.fn().mockReturnThis(),
             overlaps: jest.fn().mockReturnThis(),
+            filter: jest.fn().mockReturnThis(),
             then: jest.fn().mockImplementation((callback) => {
                 callback({ data: [], error: null });
             }),
@@ -79,8 +80,8 @@ describe('EventsService Search Logic', () => {
 
         await service.findAll(params);
 
-        // Assuming implementation uses .overlaps for array column
-        expect(mockQueryBuilder.overlaps).toHaveBeenCalledWith('distances', ['5k', '10k']);
+        // Implementation uses .filter('distances', 'ov', '{5k,10k}')
+        expect(mockQueryBuilder.filter).toHaveBeenCalledWith('distances', 'ov', '{5k,10k}');
     });
 
     it('should handle text search query', async () => {

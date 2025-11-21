@@ -312,4 +312,25 @@ export class EventsService {
 
         return { message: `Normalized distances for ${updatedCount} events` };
     }
+
+    async getEventsByStateCount() {
+        const { data, error } = await this.supabase.getClient()
+            .from('Event')
+            .select('state');
+
+        if (error) throw new Error(error.message);
+
+        const counts: Record<string, number> = {};
+
+        data.forEach((event: any) => {
+            const state = event.state?.toUpperCase();
+            if (state) {
+                counts[state] = (counts[state] || 0) + 1;
+            }
+        });
+
+        return Object.entries(counts)
+            .map(([state, count]) => ({ state, count }))
+            .sort((a, b) => a.state.localeCompare(b.state));
+    }
 }

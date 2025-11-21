@@ -8,8 +8,10 @@ import { SupabaseModule } from './supabase/supabase.module';
 
 import { ConfigModule } from '@nestjs/config';
 
+import { NotificationsModule } from './notifications/notifications.module';
+
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), EventsModule, ScraperModule, SupabaseModule],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), EventsModule, ScraperModule, SupabaseModule, NotificationsModule],
   controllers: [AppController],
   providers: [AppService],
 })

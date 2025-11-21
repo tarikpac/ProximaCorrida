@@ -10,6 +10,12 @@ export function Footer() {
                 </div>
 
                 <div className="flex gap-6">
+                    <Link href="/sobre" className="font-mono text-xs text-zinc-600 hover:text-zinc-400 uppercase tracking-widest transition-colors">
+                        Sobre
+                    </Link>
+                    <Link href="/estados" className="font-mono text-xs text-zinc-600 hover:text-zinc-400 uppercase tracking-widest transition-colors">
+                        Estados
+                    </Link>
                     <Link href="/calculadora-pace" className="font-mono text-xs text-zinc-600 hover:text-zinc-400 uppercase tracking-widest transition-colors">
                         Calculadora de Pace
                     </Link>

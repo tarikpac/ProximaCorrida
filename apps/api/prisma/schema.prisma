@@ -28,3 +28,13 @@ model Event {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+model PushSubscription {
+  id               String   @id @default(uuid())
+  endpoint         String   @unique
+  keys             Json
+  statePreferences String[]
+  userAgent        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}

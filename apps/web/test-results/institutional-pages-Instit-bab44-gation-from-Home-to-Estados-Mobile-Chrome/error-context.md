@@ -1,0 +1,138 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]:
+        - link "PROXIMA CORRIDA" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img [ref=e7]
+          - generic [ref=e10]:
+            - generic [ref=e11]: PROXIMA
+            - generic [ref=e12]: CORRIDA
+        - generic [ref=e13]:
+          - button "Notificações" [ref=e14]:
+            - img [ref=e15]
+          - button "Menu mobile" [ref=e18]:
+            - img [ref=e19]
+    - generic [ref=e21]:
+      - generic [ref=e22]:
+        - paragraph [ref=e23]: Base de dados atualizada
+        - heading "Encontre sua Proxima Corrida" [level=1] [ref=e24]:
+          - generic [ref=e25]: Encontre sua
+          - generic [ref=e26]: Proxima Corrida
+      - generic [ref=e28]:
+        - generic [ref=e29] [cursor=pointer]:
+          - generic [ref=e30]:
+            - img [ref=e31]
+            - generic [ref=e34]: Onde?
+          - generic [ref=e35]: Paraíba
+        - generic [ref=e36] [cursor=pointer]:
+          - generic [ref=e37]:
+            - img [ref=e38]
+            - generic [ref=e40]: Quando?
+          - generic [ref=e41]: Qualquer Data
+        - generic [ref=e42] [cursor=pointer]:
+          - generic [ref=e43]:
+            - img [ref=e44]
+            - generic [ref=e46]: Distância
+          - generic [ref=e47]: Qualquer
+        - button [ref=e49]:
+          - img [ref=e50]
+      - generic [ref=e55]:
+        - generic:
+          - img
+        - textbox "Buscar por nome, cidade, organizador..." [ref=e56]
+      - generic [ref=e57]:
+        - button "João Pessoa" [ref=e58]
+        - button "Campina Grande" [ref=e59]
+        - button "5K" [ref=e60]
+        - button "10K" [ref=e61]
+        - button "Meia Maratona" [ref=e62]
+        - button "Trail Run" [ref=e63]
+    - generic [ref=e65]:
+      - generic [ref=e66]:
+        - generic [ref=e67]:
+          - generic [ref=e68]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e70]: NOVAS PROVAS TODOS OS DIAS
+        - generic [ref=e72]:
+          - generic [ref=e73]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e75]: NOVAS PROVAS TODOS OS DIAS
+        - generic [ref=e77]:
+          - generic [ref=e78]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e80]: NOVAS PROVAS TODOS OS DIAS
+        - generic [ref=e82]:
+          - generic [ref=e83]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e85]: NOVAS PROVAS TODOS OS DIAS
+        - generic [ref=e87]:
+          - generic [ref=e88]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e90]: NOVAS PROVAS TODOS OS DIAS
+        - generic [ref=e92]:
+          - generic [ref=e93]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e95]: NOVAS PROVAS TODOS OS DIAS
+        - generic [ref=e97]:
+          - generic [ref=e98]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e100]: NOVAS PROVAS TODOS OS DIAS
+        - generic [ref=e102]:
+          - generic [ref=e103]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e105]: NOVAS PROVAS TODOS OS DIAS
+        - generic [ref=e107]:
+          - generic [ref=e108]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e110]: NOVAS PROVAS TODOS OS DIAS
+        - generic [ref=e112]:
+          - generic [ref=e113]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e115]: NOVAS PROVAS TODOS OS DIAS
+      - generic [ref=e117]:
+        - generic [ref=e118]:
+          - generic [ref=e119]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e121]: NOVAS PROVAS TODOS OS DIAS
+        - generic [ref=e123]:
+          - generic [ref=e124]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e126]: NOVAS PROVAS TODOS OS DIAS
+        - generic [ref=e128]:
+          - generic [ref=e129]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e131]: NOVAS PROVAS TODOS OS DIAS
+        - generic [ref=e133]:
+          - generic [ref=e134]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e136]: NOVAS PROVAS TODOS OS DIAS
+        - generic [ref=e138]:
+          - generic [ref=e139]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e141]: NOVAS PROVAS TODOS OS DIAS
+        - generic [ref=e143]:
+          - generic [ref=e144]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e146]: NOVAS PROVAS TODOS OS DIAS
+        - generic [ref=e148]:
+          - generic [ref=e149]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e151]: NOVAS PROVAS TODOS OS DIAS
+        - generic [ref=e153]:
+          - generic [ref=e154]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e156]: NOVAS PROVAS TODOS OS DIAS
+        - generic [ref=e158]:
+          - generic [ref=e159]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e161]: NOVAS PROVAS TODOS OS DIAS
+        - generic [ref=e163]:
+          - generic [ref=e164]: CALENDARIO OFICIAL ATUALIZADO
+          - generic [ref=e166]: NOVAS PROVAS TODOS OS DIAS
+    - img [ref=e169]
+    - generic [ref=e174]:
+      - heading "Organiza Corridas?" [level=2] [ref=e175]
+      - paragraph [ref=e176]: Cadastre seu evento em nossa plataforma e alcance milhares de corredores apaixonados.
+      - link "Area do Organizador" [ref=e178] [cursor=pointer]:
+        - /url: /organizador
+    - generic [ref=e180]:
+      - generic [ref=e181]:
+        - generic [ref=e182]: PROXIMA
+        - generic [ref=e183]: CORRIDA
+      - generic [ref=e184]:
+        - link "Sobre" [ref=e185] [cursor=pointer]:
+          - /url: /sobre
+        - link "Estados" [ref=e186] [cursor=pointer]:
+          - /url: /estados
+        - link "Calculadora de Pace" [ref=e187] [cursor=pointer]:
+          - /url: /calculadora-pace
+      - paragraph [ref=e188]: © 2025 Todos os direitos reservados.
+  - button "Open Next.js Dev Tools" [ref=e194] [cursor=pointer]:
+    - img [ref=e195]
+  - alert [ref=e198]
+```

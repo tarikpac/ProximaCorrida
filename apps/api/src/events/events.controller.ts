@@ -17,6 +17,11 @@ export class EventsController {
         return this.eventsService.findAll(query);
     }
 
+    @Get('stats/by-state')
+    getEventsByStateCount() {
+        return this.eventsService.getEventsByStateCount();
+    }
+
     @Get(':id')
     findOne(@Param('id') id: string) {
         return this.eventsService.findOne(id);

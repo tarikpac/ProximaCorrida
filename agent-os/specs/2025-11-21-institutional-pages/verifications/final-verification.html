@@ -1,0 +1,93 @@
+# Verification Report: Institutional Pages
+
+**Spec:** `institutional-pages`
+**Date:** 2025-11-21
+**Verifier:** implementation-verifier
+**Status:** ✅ Passed
+
+---
+
+## Executive Summary
+
+The "Institutional Pages" feature has been successfully implemented. The `/sobre` page provides static content about the
+project's mission, and the `/estados` page dynamically lists all Brazilian states with their respective event counts,
+powered by a new backend aggregation endpoint. E2E tests verify the rendering and navigation of these pages, including
+mobile responsiveness.
+
+---
+
+## 1. Tasks Verification
+
+**Status:** ✅ All Complete
+
+### Completed Tasks
+- [x] Task Group 1: API & Data Aggregation
+- [x] Implement State Aggregation Logic
+- [x] Implement `getEventsByStateCount` in Events Service
+- [x] Create API Endpoint for State Counts
+- [x] Ensure API tests pass
+- [x] Task Group 2: UI Components & Pages
+- [x] Create Institutional Pages
+- [x] Create `StateCard` Component
+- [x] Implement `/estados` Page
+- [x] Implement `/sobre` Page
+- [x] Ensure UI tests pass
+- [x] Task Group 3: Testing
+- [x] Review and Fill Testing Gaps
+- [x] Write additional strategic tests
+- [x] Run feature-specific tests only
+
+### Incomplete or Issues
+None
+
+---
+
+## 2. Documentation Verification
+
+**Status:** ✅ Complete
+
+### Implementation Documentation
+- [x] Task Group 1 Implementation: `agent-os/specs/2025-11-21-institutional-pages/tasks.md` (Tasks marked complete)
+- [x] Task Group 2 Implementation: `agent-os/specs/2025-11-21-institutional-pages/tasks.md` (Tasks marked complete)
+
+### Verification Documentation
+- [x] E2E Test File: `apps/web/tests/institutional-pages.spec.ts`
+- [x] API Test File: `apps/api/src/events/events.state-aggregation.spec.ts`
+
+### Missing Documentation
+None
+
+---
+
+## 3. Roadmap Updates
+
+**Status:** ✅ Updated
+
+### Updated Roadmap Items
+- [x] **Institutional Pages** — Create "About/How it Works" page (trust/SEO) and "All States" page (`/estados`) with
+summary cards for national expansion. `S`
+- [x] **Social Sharing** — Implement a generic share button using Web Share API for mobile and a modal fallback (Copy
+Link, WhatsApp, Telegram) for desktop. `S` (Marked as complete during this session as it was previously missed)
+
+### Notes
+The "Social Sharing" feature was completed in a previous session but the roadmap update was missed. It has been
+corrected now.
+
+---
+
+## 4. Test Suite Results
+
+**Status:** ✅ All Passing
+
+### Test Summary
+- **Total Tests:** 21 (8 E2E + 13 API)
+- **Passing:** 21 (8 E2E + 13 API)
+- **Failing:** 0
+- **Errors:** 0
+
+### Failed Tests
+None
+
+### Notes
+All API tests are now passing after resolving pre-existing technical debt (missing mocks in test modules). The new
+feature is fully covered and verified.
