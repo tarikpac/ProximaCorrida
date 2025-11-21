@@ -1,6 +1,6 @@
 import { Event } from '@/types/event';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export async function getEvents(page = 1, limit = 25): Promise<Event[]> {
     const res = await fetch(`${API_URL}/events?take=${limit}&skip=${(page - 1) * limit}`, {

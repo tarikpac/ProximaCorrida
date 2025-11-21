@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Navbar } from '@/components/ui/navbar';
 import { Footer } from '@/components/ui/footer';
+import { ShareButton } from '@/components/share/share-button';
 
 export default async function EventDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
@@ -132,10 +133,18 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
                             </div>
 
                             <div className="bg-zinc-950 border border-zinc-800 p-4">
-                                <button className="w-full flex items-center justify-center gap-2 text-zinc-400 hover:text-white transition-colors font-mono text-sm uppercase py-2">
+                                <ShareButton
+                                    eventData={{
+                                        title: event.title,
+                                        date: formattedDate,
+                                        city: event.city,
+                                        url: `/events/${id}`
+                                    }}
+                                    className="w-full flex items-center justify-center gap-2 text-zinc-400 hover:text-white transition-colors font-mono text-sm uppercase py-2"
+                                >
                                     <Share2 className="w-4 h-4" />
                                     Compartilhar Evento
-                                </button>
+                                </ShareButton>
                                 <div className="h-px w-full bg-zinc-900 my-2" />
                                 <a
                                     href={event.sourceUrl}
@@ -155,9 +164,17 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
             {/* Mobile Fixed Bottom Bar */}
             <div className="fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 p-4 lg:hidden z-50">
                 <div className="flex gap-3">
-                    <button className="p-3 bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white">
+                    <ShareButton
+                        eventData={{
+                            title: event.title,
+                            date: formattedDate,
+                            city: event.city,
+                            url: `/events/${id}`
+                        }}
+                        className="p-3 bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white"
+                    >
                         <Share2 className="w-6 h-6" />
-                    </button>
+                    </ShareButton>
                     <a
                         href={event.regLink}
                         target="_blank"

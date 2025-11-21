@@ -41,7 +41,8 @@ async function fetchEvents(filters: ReturnType<typeof useEventFilters>['filters'
     params.append("limit", "12");
     params.append("page", "1"); // TODO: Add pagination state
 
-    const res = await fetch(`http://localhost:3000/events?${params.toString()}`);
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const res = await fetch(`${API_URL}/events?${params.toString()}`);
     if (!res.ok) {
         throw new Error('Failed to fetch events');
     }
