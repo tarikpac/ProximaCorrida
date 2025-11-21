@@ -5,7 +5,7 @@
 3. [x] **Social Sharing** — Implement a generic share button using Web Share API for mobile and a modal fallback (Copy Link, WhatsApp, Telegram) for desktop. `S`
 4. [x] **Institutional Pages** — Create "About/How it Works" page (trust/SEO) and "All States" page (`/estados`) with summary cards for national expansion. `S`
 5. [x] **Web Push Notifications (Core)** — Implement Service Worker + VAPID + Push API. Create backend storage for subscriptions and user preference UI for selecting states. `M`
-6. [ ] **Push Notification Pipeline** — Connect Scraper to Notification System: Scraping -> Deduplication -> Persistence -> Trigger Push for subscribers of the specific state. `M`
+6. [x] **Push Notification Pipeline** — Connect Scraper to Notification System: Scraping -> Deduplication -> Persistence -> Trigger Push for subscribers of the specific state. `M`
 7. [ ] **iOS PWA Optimization** — Implement UX strategy to guide iOS users to install the PWA (required for Push) and ensure the Service Worker handles background notifications. `S`
 8. [ ] **"I'm Going" & Popularity System** — Add "Eu vou" button, track attendance counts, and implement logic to badge events as "Popular" or "High Attendance". `M`
 9. [ ] **Security & Integrity Foundation** — Implement global exception filters to prevent error leakage, set up rate limiting, and secure internal routes to guarantee system stability. `S`
