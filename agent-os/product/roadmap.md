@@ -9,7 +9,7 @@
 7. [x] **iOS PWA Optimization** — Implement UX strategy to guide iOS users to install the PWA (required for Push) and ensure the Service Worker handles background notifications. `S`
 8. [x] **Organizer Submission Flow** — Create an "Area do Organizador" with a submission form (MVP: Google Forms integration) for manual race entry and approval. `XS`
 9. [x] **Security & Integrity Foundation** — Implement global exception filters to prevent error leakage, set up rate limiting, and secure internal routes to guarantee system stability. `S`
-10. [ ] **Scraper Automation** — Configure robust periodic execution (Cron/BullMQ) with error handling and monitoring. `S`
+10. [x] **Scraper Automation** — Configure robust periodic execution (Cron/BullMQ) with error handling and monitoring. `S`
 11. [ ] **Responsive Navigation & Layout** — Implement a fully responsive header, navigation menu, and footer that adapts seamlessly to mobile, tablet, and desktop screens. `S`
 12. [ ] **Scraper Refinement & Expansion** — Refactor scraper to support multiple states/origins (National Expansion), optimize performance for high volume, and standardize data models. `L`
 13. [ ] **Página de Calendário por Estado** — Implement `/calendario` (state selection) and `/calendario/[UF]` (monthly calendar view). Features: max 2 events/day cell, "+X events" indicator, day details modal, month/year navigation, and state switcher. `M`
