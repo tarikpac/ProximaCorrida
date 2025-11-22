@@ -30,7 +30,7 @@ test.describe('Pace Calculator', () => {
         await expect(page.getByText('05:00 min/km')).toBeVisible();
 
         // Check Prediction Table (Marathon prediction should be visible)
-        await expect(page.getByText('42,2 km')).toBeVisible();
+        await expect(page.getByText(/42,2 km/)).toBeVisible();
     });
 
     test('should calculate Time when Distance and Pace are provided', async ({ page }) => {

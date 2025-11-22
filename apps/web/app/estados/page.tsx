@@ -1,5 +1,3 @@
-import { Navbar } from "@/components/ui/navbar";
-import { Footer } from "@/components/ui/footer";
 import { StateCard } from "@/components/ui/state-card";
 import { Metadata } from "next";
 
@@ -62,38 +60,30 @@ export default async function EstadosPage() {
     const countsMap = new Map(countsData.map((item) => [item.state, item.count]));
 
     return (
-        <main className="min-h-screen bg-zinc-950 flex flex-col">
-            <Navbar />
-
-            <section className="pt-32 pb-16 px-4">
-                <div className="container mx-auto">
-                    <div className="flex items-center gap-3 mb-8">
-                        <div className="w-3 h-8 bg-lime-400 -skew-x-12" />
-                        <h1 className="text-4xl md:text-5xl font-black italic uppercase text-white tracking-tighter">
-                            Corridas por Estado
-                        </h1>
-                    </div>
-
-                    <p className="text-zinc-400 max-w-2xl mb-12 text-lg">
-                        Encontre corridas de rua em todo o Brasil. Selecione seu estado para ver o calendário completo de eventos confirmados.
-                    </p>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {BRAZIL_STATES.map((state) => (
-                            <StateCard
-                                key={state.code}
-                                stateCode={state.code}
-                                name={state.name}
-                                count={countsMap.get(state.code) || 0}
-                            />
-                        ))}
-                    </div>
+        <section className="pt-32 pb-16 px-4">
+            <div className="container mx-auto">
+                <div className="flex items-center gap-3 mb-8">
+                    <div className="w-3 h-8 bg-lime-400 -skew-x-12" />
+                    <h1 className="text-4xl md:text-5xl font-black italic uppercase text-white tracking-tighter">
+                        Corridas por Estado
+                    </h1>
                 </div>
-            </section>
 
-            <div className="mt-auto">
-                <Footer />
+                <p className="text-zinc-400 max-w-2xl mb-12 text-lg">
+                    Encontre corridas de rua em todo o Brasil. Selecione seu estado para ver o calendário completo de eventos confirmados.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {BRAZIL_STATES.map((state) => (
+                        <StateCard
+                            key={state.code}
+                            stateCode={state.code}
+                            name={state.name}
+                            count={countsMap.get(state.code) || 0}
+                        />
+                    ))}
+                </div>
             </div>
-        </main>
+        </section>
     );
 }

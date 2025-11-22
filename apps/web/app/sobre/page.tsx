@@ -1,5 +1,5 @@
-import { Navbar } from "@/components/ui/navbar";
-import { Footer } from "@/components/ui/footer";
+
+
 import { Metadata } from "next";
 import { MapPin, Calendar, Bell, Calculator } from "lucide-react";
 
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function SobrePage() {
     return (
         <main className="min-h-screen bg-zinc-950 flex flex-col">
-            <Navbar />
+
 
             {/* Hero Section */}
             <section className="pt-32 pb-16 px-4 border-b border-zinc-900">
@@ -122,7 +122,7 @@ export default function SobrePage() {
             </section>
 
             <div className="mt-auto">
-                <Footer />
+
             </div>
         </main>
     );

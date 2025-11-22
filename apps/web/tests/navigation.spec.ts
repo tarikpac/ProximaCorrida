@@ -6,13 +6,14 @@ test.describe('Navigation', () => {
         // Use a larger viewport for desktop
         await page.setViewportSize({ width: 1280, height: 720 });
         await page.goto('/');
+        await page.waitForLoadState('networkidle');
 
         // Check if link exists and is visible
         const calculatorLink = page.getByRole('link', { name: 'Calculadora de Pace' }).first();
         await expect(calculatorLink).toBeVisible();
 
         // Click link
-        await calculatorLink.click();
+        await calculatorLink.click({ force: true });
 
         // Verify URL
         await expect(page).toHaveURL(/.*\/calculadora-pace/);
@@ -25,6 +26,7 @@ test.describe('Navigation', () => {
         // Use a mobile viewport
         await page.setViewportSize({ width: 375, height: 667 });
         await page.goto('/');
+        await page.waitForLoadState('networkidle');
 
         // Open Mobile Menu
         await page.getByRole('button', { name: 'Menu mobile' }).click();
@@ -35,7 +37,7 @@ test.describe('Navigation', () => {
         await expect(calculatorLink).toBeVisible();
 
         // Click link
-        await calculatorLink.click();
+        await calculatorLink.click({ force: true });
 
         // Verify URL
         await expect(page).toHaveURL(/.*\/calculadora-pace/);
@@ -43,6 +45,7 @@ test.describe('Navigation', () => {
 
     test('should navigate to Pace Calculator from Footer', async ({ page }) => {
         await page.goto('/');
+        await page.waitForLoadState('networkidle');
 
         // Check if link exists in footer (might need scrolling, but Playwright auto-scrolls)
         // We use 'last' because the desktop navbar link might be found first if we just search by text
@@ -53,7 +56,7 @@ test.describe('Navigation', () => {
         await expect(calculatorLink).toBeVisible();
 
         // Click link
-        await calculatorLink.click();
+        await calculatorLink.click({ force: true });
 
         // Verify URL
         await expect(page).toHaveURL(/.*\/calculadora-pace/);

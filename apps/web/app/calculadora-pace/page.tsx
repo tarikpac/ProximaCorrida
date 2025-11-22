@@ -1,7 +1,5 @@
 'use client';
 
-import { Navbar } from '@/components/ui/navbar';
-import { Footer } from '@/components/ui/footer';
 import { usePaceCalculator } from '@/hooks/use-pace-calculator';
 import { Calculator, Timer, Gauge, AlertCircle } from 'lucide-react';
 
@@ -28,9 +26,7 @@ export default function PaceCalculatorPage() {
 
     return (
         <main className="min-h-screen bg-zinc-950 flex flex-col">
-            <Navbar />
-
-            <div className="flex-1 container mx-auto px-4 py-8 max-w-2xl">
+            <div className="flex-1 container mx-auto px-4 pt-24 pb-8 max-w-2xl">
                 {/* Header Section */}
                 <div className="mb-8 space-y-4">
                     <h1 className="text-3xl font-bold tracking-tight text-zinc-100 flex items-center gap-2">
@@ -241,8 +237,6 @@ export default function PaceCalculatorPage() {
                     )}
                 </div>
             </div>
-
-            <Footer />
         </main>
     );
 }

@@ -4,13 +4,15 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Navbar } from '@/components/ui/navbar';
-import { Footer } from '@/components/ui/footer';
 import { ShareButton } from '@/components/share/share-button';
 
 export default async function EventDetailsPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
     const event = await getEvent(id);
+
+    if (!event) {
+        return <div>Evento não encontrado</div>;
+    }
 
     const formattedDate = format(new Date(event.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }).toUpperCase();
     const day = format(new Date(event.date), "dd");
@@ -18,8 +20,6 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
 
     return (
         <main className="min-h-screen bg-zinc-950 flex flex-col">
-            <Navbar />
-
             <div className="flex-1 container mx-auto px-4 py-8 md:py-12">
                 {/* Breadcrumb / Back */}
                 <div className="mb-8">
@@ -186,8 +186,6 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
                     </a>
                 </div>
             </div>
-
-            <Footer />
         </main>
     );
 }

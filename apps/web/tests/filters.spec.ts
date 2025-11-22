@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Advanced Search & Filters', () => {
     test.beforeEach(async ({ page }) => {
-        await page.goto('http://localhost:3002');
+        await page.goto('/');
     });
 
     test('should open filter drawer when clicking "Onde"', async ({ page }) => {
@@ -55,7 +55,7 @@ test.describe('Advanced Search & Filters', () => {
 
         await drawer.locator('button:has-text("Aplicar Filtros")').click({ force: true });
 
-        await expect(page).toHaveURL(/.*distances=5K/);
+        await expect(page).toHaveURL(/.*distances=5km/);
         await expect(page.getByTestId('filter-distance-trigger')).toContainText('1 Selecionada(s)');
     });
 

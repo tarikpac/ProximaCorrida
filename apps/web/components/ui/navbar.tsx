@@ -3,19 +3,34 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Timer, Globe, Menu, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { NavbarBell } from "@/components/notifications/navbar-bell";
 
 export function Navbar() {
     const pathname = usePathname();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-    const isActive = (path: string) => {
-        return pathname === path ? "text-lime-400" : "text-zinc-400 hover:text-lime-400";
-    };
+    // Close mobile menu when route changes
+    useEffect(() => {
+        setIsMobileMenuOpen(false);
+    }, [pathname]);
 
-    const toggleMobileMenu = () => {
-        setIsMobileMenuOpen(!isMobileMenuOpen);
+    // Prevent scrolling when mobile menu is open
+    useEffect(() => {
+        if (isMobileMenuOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [isMobileMenuOpen]);
+
+    const isActive = (path: string) => {
+        return pathname === path
+            ? "text-lime-400 border-b-2 border-lime-400"
+            : "text-zinc-400 hover:text-lime-400 border-b-2 border-transparent hover:border-lime-400/50";
     };
 
     return (
@@ -41,25 +56,25 @@ export function Navbar() {
                     <div className="flex items-center gap-6">
                         <Link
                             href="/calendario"
-                            className={`font-mono text-xs font-bold tracking-widest transition-colors uppercase ${isActive('/calendario')}`}
+                            className={`font-mono text-xs font-bold tracking-widest transition-all uppercase py-1 ${isActive('/calendario')}`}
                         >
                             Calendario
                         </Link>
                         <Link
                             href="/estados"
-                            className={`font-mono text-xs font-bold tracking-widest transition-colors uppercase ${isActive('/estados')}`}
+                            className={`font-mono text-xs font-bold tracking-widest transition-all uppercase py-1 ${isActive('/estados')}`}
                         >
                             Estados
                         </Link>
                         <Link
                             href="/calculadora-pace"
-                            className={`font-mono text-xs font-bold tracking-widest transition-colors uppercase ${isActive('/calculadora-pace')}`}
+                            className={`font-mono text-xs font-bold tracking-widest transition-all uppercase py-1 ${isActive('/calculadora-pace')}`}
                         >
                             Calculadora de Pace
                         </Link>
                         <Link
                             href="/organizador"
-                            className={`font-mono text-xs font-bold tracking-widest transition-colors uppercase ${isActive('/organizador')}`}
+                            className={`font-mono text-xs font-bold tracking-widest transition-all uppercase py-1 ${isActive('/organizador')}`}
                         >
                             Organizador
                         </Link>
@@ -79,54 +94,88 @@ export function Navbar() {
                     </div>
                 </div>
 
+                {/* Mobile Actions */}
                 <div className="flex items-center gap-2 md:hidden">
                     <NavbarBell />
                     {/* Mobile Menu Button */}
                     <button
                         className="p-2 text-zinc-400 hover:text-white"
-                        onClick={toggleMobileMenu}
+                        onClick={() => setIsMobileMenuOpen(true)}
                         aria-label="Menu mobile"
                     >
-                        {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                        <Menu className="h-6 w-6" />
                     </button>
                 </div>
             </div>
 
-            {/* Mobile Menu Overlay */}
+            {/* Mobile Menu Overlay & Drawer */}
             {isMobileMenuOpen && (
-                <div
-                    data-testid="mobile-menu"
-                    className="md:hidden absolute top-16 left-0 w-full bg-zinc-950 border-b border-zinc-800 p-4 flex flex-col gap-4 animate-in slide-in-from-top-5"
-                >
-                    <Link
-                        href="/calendario"
-                        className={`font-mono text-sm font-bold tracking-widest uppercase py-2 ${isActive('/calendario')}`}
+                <>
+                    {/* Overlay */}
+                    <div
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 md:hidden animate-in fade-in duration-200"
                         onClick={() => setIsMobileMenuOpen(false)}
+                    />
+
+                    {/* Drawer */}
+                    <div
+                        data-testid="mobile-menu"
+                        className="fixed inset-y-0 right-0 w-3/4 max-w-sm bg-zinc-950 border-l border-zinc-800 z-50 md:hidden shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col"
                     >
-                        Calendario
-                    </Link>
-                    <Link
-                        href="/estados"
-                        className={`font-mono text-sm font-bold tracking-widest uppercase py-2 ${isActive('/estados')}`}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                        Estados
-                    </Link>
-                    <Link
-                        href="/calculadora-pace"
-                        className={`font-mono text-sm font-bold tracking-widest uppercase py-2 ${isActive('/calculadora-pace')}`}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                        Calculadora de Pace
-                    </Link>
-                    <Link
-                        href="/organizador"
-                        className={`font-mono text-sm font-bold tracking-widest uppercase py-2 ${isActive('/organizador')}`}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                        Organizador
-                    </Link>
-                </div>
+                        <div className="flex items-center justify-between p-4 border-b border-zinc-800">
+                            <span className="font-black italic uppercase text-white text-lg tracking-tighter">
+                                MENU
+                            </span>
+                            <button
+                                className="p-2 text-zinc-400 hover:text-white"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                aria-label="Fechar menu"
+                            >
+                                <X className="h-6 w-6" />
+                            </button>
+                        </div>
+
+                        <div className="flex flex-col p-4 gap-2">
+                            <Link
+                                href="/"
+                                className={`font-mono text-sm font-bold tracking-widest uppercase py-3 px-2 ${pathname === '/' ? 'text-lime-400 bg-zinc-900/50' : 'text-zinc-400'}`}
+                            >
+                                Home
+                            </Link>
+                            <Link
+                                href="/calendario"
+                                className={`font-mono text-sm font-bold tracking-widest uppercase py-3 px-2 ${isActive('/calendario').includes('text-lime-400') ? 'text-lime-400 bg-zinc-900/50' : 'text-zinc-400'}`}
+                            >
+                                Calendario
+                            </Link>
+                            <Link
+                                href="/estados"
+                                className={`font-mono text-sm font-bold tracking-widest uppercase py-3 px-2 ${isActive('/estados').includes('text-lime-400') ? 'text-lime-400 bg-zinc-900/50' : 'text-zinc-400'}`}
+                            >
+                                Estados
+                            </Link>
+                            <Link
+                                href="/calculadora-pace"
+                                className={`font-mono text-sm font-bold tracking-widest uppercase py-3 px-2 ${isActive('/calculadora-pace').includes('text-lime-400') ? 'text-lime-400 bg-zinc-900/50' : 'text-zinc-400'}`}
+                            >
+                                Calculadora de Pace
+                            </Link>
+                            <Link
+                                href="/organizador"
+                                className={`font-mono text-sm font-bold tracking-widest uppercase py-3 px-2 ${isActive('/organizador').includes('text-lime-400') ? 'text-lime-400 bg-zinc-900/50' : 'text-zinc-400'}`}
+                            >
+                                Organizador
+                            </Link>
+                        </div>
+
+                        <div className="mt-auto p-4 border-t border-zinc-800">
+                            <button className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors w-full py-2">
+                                <Globe className="h-4 w-4" />
+                                <span className="font-mono text-xs font-bold">PORTUGUÊS (BR)</span>
+                            </button>
+                        </div>
+                    </div>
+                </>
             )}
         </nav>
     );

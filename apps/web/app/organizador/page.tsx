@@ -1,5 +1,5 @@
-import { Navbar } from "@/components/ui/navbar";
-import { Footer } from "@/components/ui/footer";
+
+
 import { Metadata } from "next";
 import { CheckCircle, Users, MapPin, FileText, CheckSquare, Calendar } from "lucide-react";
 import { GOOGLE_FORM_URL } from "../../src/config/constants";
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default function OrganizadorPage() {
     return (
         <main className="min-h-screen bg-zinc-950 flex flex-col">
-            <Navbar />
+
 
             {/* Hero Section */}
             <section className="pt-32 pb-16 px-4 border-b border-zinc-900">
@@ -148,7 +148,7 @@ export default function OrganizadorPage() {
             </section>
 
             <div className="mt-auto">
-                <Footer />
+
             </div>
         </main>
     );
