@@ -4,6 +4,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { NotificationsModule } from './notifications.module';
 import { Queue } from 'bullmq';
 
+jest.mock('bullmq', () => ({
+    Queue: jest.fn(),
+    Worker: jest.fn(),
+}));
+
 describe('Queue Configuration', () => {
     let moduleRef: TestingModule;
 

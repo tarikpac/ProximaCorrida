@@ -14,7 +14,110 @@ export class EventsService {
         @InjectQueue('notifications') private notificationsQueue: Queue,
     ) { }
 
-    // ... (other methods)
+    async create(data: Prisma.EventCreateInput) {
+        const { data: result, error } = await this.supabase.getClient()
+            .from('Event')
+            .insert({
+                ...data,
+                id: crypto.randomUUID(),
+                updatedAt: new Date(),
+                createdAt: new Date()
+            })
+            .select()
+            .single();
+
+        if (error) throw new Error(error.message);
+        return result;
+    }
+
+    async findAll(query: SearchEventsDto) {
+        let builder = this.supabase.getClient()
+            .from('Event')
+            .select('*', { count: 'exact' });
+
+        if (query.state) {
+            builder = builder.eq('state', query.state);
+        }
+
+        if (query.city) {
+            builder = builder.ilike('city', `%${query.city}%`);
+        }
+
+        if (query.from) {
+            builder = builder.gte('date', query.from);
+        }
+
+        if (query.to) {
+            builder = builder.lte('date', query.to);
+        }
+
+        if (query.query) {
+            builder = builder.ilike('title', `%${query.query}%`);
+        }
+
+        if (query.distances && query.distances.length > 0) {
+            // This is tricky with Supabase/Postgres array columns. 
+            // Assuming 'distances' is a text array or similar.
+            // For now, let's use 'cs' (contains) if it's an array column, or simple text search.
+            // Since we normalized distances, we can check if the array overlaps.
+            builder = builder.overlaps('distances', query.distances);
+        }
+
+        // Pagination
+        const page = query.page || 1;
+        const limit = query.limit || 10;
+        const from = (page - 1) * limit;
+        const to = from + limit - 1;
+
+        builder = builder.range(from, to).order('date', { ascending: true });
+
+        const { data, error, count } = await builder;
+
+        if (error) throw new Error(error.message);
+
+        return {
+            data,
+            meta: {
+                total: count,
+                page,
+                limit,
+                totalPages: Math.ceil((count || 0) / limit),
+            }
+        };
+    }
+
+    async findOne(id: string) {
+        const { data, error } = await this.supabase.getClient()
+            .from('Event')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) throw new Error(error.message);
+        return data;
+    }
+
+    async update(id: string, data: Prisma.EventUpdateInput) {
+        const { data: result, error } = await this.supabase.getClient()
+            .from('Event')
+            .update({ ...data, updatedAt: new Date() })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw new Error(error.message);
+        return result;
+    }
+
+    async remove(id: string) {
+        const { error } = await this.supabase.getClient()
+            .from('Event')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw new Error(error.message);
+        return { message: 'Event deleted successfully' };
+    }
 
     async upsertBySourceUrl(data: Prisma.EventCreateInput) {
         const { data: existing } = await this.supabase.getClient()

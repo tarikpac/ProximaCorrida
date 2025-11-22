@@ -19,6 +19,9 @@ export function Footer() {
                     <Link href="/calculadora-pace" className="font-mono text-xs text-zinc-600 hover:text-zinc-400 uppercase tracking-widest transition-colors">
                         Calculadora de Pace
                     </Link>
+                    <Link href="/organizador" className="font-mono text-xs text-zinc-600 hover:text-zinc-400 uppercase tracking-widest transition-colors">
+                        Área do Organizador
+                    </Link>
                 </div>
 
                 <p className="font-mono text-xs text-zinc-600 uppercase tracking-widest">

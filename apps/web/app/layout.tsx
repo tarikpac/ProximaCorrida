@@ -17,6 +17,12 @@ import Providers from "./providers";
 export const metadata: Metadata = {
   title: "Próxima Corrida - Corridas de Rua na Paraíba",
   description: "Encontre as melhores corridas de rua na Paraíba. Calendário completo de eventos, inscrições e detalhes.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Próxima Corrida",
+  },
 };
 
 export default function RootLayout({

@@ -1,0 +1,40 @@
+﻿  console.log
+    NavbarBell Render: { isIOS: true, isStandalone: false }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:16:13)
+
+  console.log
+    NavbarBell Render: { isIOS: true, isStandalone: false }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:16:13)
+
+  console.log
+    NavbarBell Render: { isIOS: false, isStandalone: false }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:16:13)
+
+  console.log
+    NavbarBell Render: { isIOS: false, isStandalone: false }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:16:13)
+
+  console.log
+    NavbarBell Render: { isIOS: true, isStandalone: true }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:16:13)
+
+  console.log
+    NavbarBell Render: { isIOS: true, isStandalone: true }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:16:13)
+
+  console.log
+    NavbarBell Render: { isIOS: true, isStandalone: false }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:16:13)
+
+  console.log
+    NavbarBell Render: { isIOS: true, isStandalone: false }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:16:13)
+

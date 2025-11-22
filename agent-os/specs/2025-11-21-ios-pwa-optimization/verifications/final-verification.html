@@ -1,0 +1,50 @@
+# Verification Report: iOS PWA Optimization
+
+**Date:** 2025-11-21
+**Status:** Passed
+**Feature:** iOS PWA Optimization
+
+## Summary
+The iOS PWA Optimization feature has been successfully implemented and verified. This feature ensures that iOS users are guided to install the application as a PWA to enable push notifications, which are only available in standalone mode on iOS.
+
+## Components Verified
+
+### 1. iOS Detection Logic (`useIOSPWA` hook)
+- **Functionality:** Correctly detects iOS User Agent and Standalone mode.
+- **Persistence:** Implements a 7-day cooldown for the installation prompt using `localStorage`.
+- **Tests:** Unit tests cover detection logic, standalone checks, and cooldown persistence.
+
+### 2. Installation Guide UI (`PWAInstallGuide` component)
+- **UI:** Implemented as a bottom sheet/drawer with clear instructions and icons.
+- **Interaction:** "Entendi" button dismisses the guide and triggers the cooldown.
+- **Tests:** Component renders correctly and handles dismissal interactions.
+
+### 3. Integration (`NavbarBell` component)
+- **Logic:**
+  - Clicking the Bell on **iOS Browser** triggers the `PWAInstallGuide` (overriding cooldown).
+  - Clicking the Bell on **iOS Standalone** or **Android/Desktop** triggers the standard notification preferences flow.
+- **Tests:** Integration tests verify the correct flow for different environments and ensure the guide is displayed when appropriate.
+
+### 4. Service Worker & Manifest
+- **Manifest:** `manifest.json` created with `display: standalone` and required icons (`192x192`, `512x512`).
+- **Service Worker:** `sw.js` verified to handle `push` events and `notificationclick` with `clients.openWindow` for deep linking.
+- **Metadata:** `layout.tsx` updated to include manifest link and Apple-specific meta tags.
+
+## Test Results
+All automated tests passed successfully:
+- `hooks/use-ios-pwa.spec.ts`: **Passed**
+- `components/pwa/pwa-install-guide.spec.tsx`: **Passed**
+- `components/notifications/navbar-bell.spec.tsx`: **Passed**
+
+## Manual Verification Steps (Recommended)
+To fully verify the feature on a real device:
+1. Open the app on an iPhone (Safari).
+2. Click the Bell icon. Verify the "Instale o App" guide appears.
+3. Dismiss the guide. Refresh the page. The guide should NOT appear automatically (unless triggered by logic not yet implemented for auto-show, currently it's user-triggered via Bell).
+4. Follow instructions to "Add to Home Screen".
+5. Open the installed PWA.
+6. Click the Bell icon. Verify the standard "Ativar Notificações" modal appears.
+7. Enable notifications and verify permission prompt.
+
+## Conclusion
+The feature is ready for deployment. The implementation provides a smooth onboarding experience for iOS users to enable push notifications.

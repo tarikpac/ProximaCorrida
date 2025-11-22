@@ -3,14 +3,19 @@
 import { Bell } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { usePushNotifications } from '@/hooks/use-push-notifications';
+import { useIOSPWA } from '@/hooks/use-ios-pwa';
 import { Modal } from '@/components/ui/modal';
+import { PWAInstallGuide } from '@/components/pwa/pwa-install-guide';
 import { BRAZIL_STATES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
 export function NavbarBell() {
     const { permission, subscription, statePreferences, loading, subscribeToPush, updatePreferences } = usePushNotifications();
+    const { isIOS, isStandalone, dismissPrompt } = useIOSPWA();
+
     const [showExplainer, setShowExplainer] = useState(false);
     const [showPreferences, setShowPreferences] = useState(false);
+    const [showPWAInstall, setShowPWAInstall] = useState(false);
     const [selectedStates, setSelectedStates] = useState<string[]>([]);
 
     // Sync selected states with preferences when modal opens or preferences change
@@ -21,6 +26,11 @@ export function NavbarBell() {
     }, [showPreferences, statePreferences]);
 
     const handleBellClick = () => {
+        if (isIOS && !isStandalone) {
+            setShowPWAInstall(true);
+            return;
+        }
+
         if (permission === 'granted' && subscription) {
             setShowPreferences(true);
         } else {
@@ -49,6 +59,11 @@ export function NavbarBell() {
         );
     };
 
+    const handleDismissPWA = () => {
+        setShowPWAInstall(false);
+        dismissPrompt();
+    };
+
     return (
         <>
             <button
@@ -61,6 +76,11 @@ export function NavbarBell() {
                     <span className="absolute top-2 right-2 w-2 h-2 bg-lime-400 rounded-full" />
                 )}
             </button>
+
+            <PWAInstallGuide
+                isOpen={showPWAInstall}
+                onClose={handleDismissPWA}
+            />
 
             <Modal
                 isOpen={showExplainer}

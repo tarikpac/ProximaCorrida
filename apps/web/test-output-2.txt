@@ -1,0 +1,160 @@
+﻿  console.log
+    NavbarBell Render: { isIOS: true, isStandalone: false }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:16:13)
+
+  console.log
+    NavbarBell Render: {
+      isIOS: true,
+      isStandalone: false,
+      showPWAInstall: false,
+      showExplainer: false
+    }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:30:13)
+
+  console.log
+    handleBellClick called { isIOS: true, isStandalone: false }
+
+      at handleBellClick (components/notifications/navbar-bell.tsx:33:17)
+
+  console.log
+    Setting showPWAInstall to true
+
+      at handleBellClick (components/notifications/navbar-bell.tsx:35:21)
+
+  console.log
+    NavbarBell Render: { isIOS: true, isStandalone: false }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:16:13)
+
+  console.log
+    NavbarBell Render: {
+      isIOS: true,
+      isStandalone: false,
+      showPWAInstall: true,
+      showExplainer: false
+    }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:30:13)
+
+  console.log
+    NavbarBell Render: { isIOS: false, isStandalone: false }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:16:13)
+
+  console.log
+    NavbarBell Render: {
+      isIOS: false,
+      isStandalone: false,
+      showPWAInstall: false,
+      showExplainer: false
+    }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:30:13)
+
+  console.log
+    handleBellClick called { isIOS: false, isStandalone: false }
+
+      at handleBellClick (components/notifications/navbar-bell.tsx:33:17)
+
+  console.log
+    Setting showExplainer to true
+
+      at handleBellClick (components/notifications/navbar-bell.tsx:43:21)
+
+  console.log
+    NavbarBell Render: { isIOS: false, isStandalone: false }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:16:13)
+
+  console.log
+    NavbarBell Render: {
+      isIOS: false,
+      isStandalone: false,
+      showPWAInstall: false,
+      showExplainer: true
+    }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:30:13)
+
+  console.log
+    NavbarBell Render: { isIOS: true, isStandalone: true }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:16:13)
+
+  console.log
+    NavbarBell Render: {
+      isIOS: true,
+      isStandalone: true,
+      showPWAInstall: false,
+      showExplainer: false
+    }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:30:13)
+
+  console.log
+    handleBellClick called { isIOS: true, isStandalone: true }
+
+      at handleBellClick (components/notifications/navbar-bell.tsx:33:17)
+
+  console.log
+    Setting showExplainer to true
+
+      at handleBellClick (components/notifications/navbar-bell.tsx:43:21)
+
+  console.log
+    NavbarBell Render: { isIOS: true, isStandalone: true }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:16:13)
+
+  console.log
+    NavbarBell Render: {
+      isIOS: true,
+      isStandalone: true,
+      showPWAInstall: false,
+      showExplainer: true
+    }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:30:13)
+
+  console.log
+    NavbarBell Render: { isIOS: true, isStandalone: false }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:16:13)
+
+  console.log
+    NavbarBell Render: {
+      isIOS: true,
+      isStandalone: false,
+      showPWAInstall: false,
+      showExplainer: false
+    }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:30:13)
+
+  console.log
+    handleBellClick called { isIOS: true, isStandalone: false }
+
+      at handleBellClick (components/notifications/navbar-bell.tsx:33:17)
+
+  console.log
+    Setting showPWAInstall to true
+
+      at handleBellClick (components/notifications/navbar-bell.tsx:35:21)
+
+  console.log
+    NavbarBell Render: { isIOS: true, isStandalone: false }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:16:13)
+
+  console.log
+    NavbarBell Render: {
+      isIOS: true,
+      isStandalone: false,
+      showPWAInstall: true,
+      showExplainer: false
+    }
+
+      at NavbarBell (components/notifications/navbar-bell.tsx:30:13)
+
