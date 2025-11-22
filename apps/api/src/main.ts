@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -16,6 +17,7 @@ async function bootstrap() {
     optionsSuccessStatus: 204,
   });
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
+  app.useGlobalFilters(new GlobalExceptionFilter());
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
   console.log(`Application is running on: ${await app.getUrl()}`);
