@@ -18,12 +18,28 @@ import { PrismaModule } from './prisma/prisma.module';
     ScheduleModule.forRoot(),
     BullModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        connection: {
-          host: configService.get('REDIS_HOST') || 'localhost',
-          port: configService.get('REDIS_PORT') || 6379,
-        },
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const redisUrl = configService.get<string>('REDIS_URL');
+        if (redisUrl) {
+          const url = new URL(redisUrl);
+          return {
+            connection: {
+              host: url.hostname,
+              port: Number(url.port),
+              username: url.username,
+              password: url.password,
+              tls: url.protocol === 'rediss:' ? { rejectUnauthorized: false } : undefined,
+            },
+          };
+        }
+
+        return {
+          connection: {
+            host: configService.get('REDIS_HOST') || 'localhost',
+            port: configService.get('REDIS_PORT') || 6379,
+          },
+        };
+      },
       inject: [ConfigService],
     }),
     ThrottlerModule.forRoot([
@@ -47,4 +63,4 @@ import { PrismaModule } from './prisma/prisma.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }
