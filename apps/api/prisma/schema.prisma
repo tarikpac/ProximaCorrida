@@ -24,9 +24,19 @@ model Event {
   price       String?
   regLink     String
   sourceUrl   String   @unique
+  
+  // Scraper Expansion Fields
+  sourcePlatform String   @default("corridasemaratonas")
+  sourceEventId  String?
+  rawLocation    String?
+  priceText      String?
+  priceMin       Decimal?
+
   scrapedAt   DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([sourcePlatform, sourceEventId])
 }
 
 model PushSubscription {

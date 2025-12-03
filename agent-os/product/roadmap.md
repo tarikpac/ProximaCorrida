@@ -11,12 +11,13 @@
 9. [x] **Security & Integrity Foundation** — Implement global exception filters to prevent error leakage, set up rate limiting, and secure internal routes to guarantee system stability. `S`
 10. [x] **Scraper Automation** — Configure robust periodic execution (Cron/BullMQ) with error handling and monitoring. `S`
 11. [x] **Responsive Navigation & Layout** — Implement a fully responsive header, navigation menu, and footer that adapts seamlessly to mobile, tablet, and desktop screens. `S`
-12. [ ] **Scraper Refinement & Expansion** — Refactor scraper to support multiple states/origins (National Expansion), optimize performance for high volume, and standardize data models. `L`
+12. [x] **Scraper Refinement & Expansion** — Refactor scraper to support multiple states/origins (National Expansion), optimize performance for high volume, and standardize data models. `L`
 13. [ ] **Página de Calendário por Estado** — Implement `/calendario` (state selection) and `/calendario/[UF]` (monthly calendar view). Features: max 2 events/day cell, "+X events" indicator, day details modal, month/year navigation, and state switcher. `M`
 14. [ ] **Geographic Navigation & Routing** — Implement State Selector Header (horizontal scroll) and dynamic routes (`/br/[state]`) for SEO-friendly state filtering. `M`
 15. [ ] **"I'm Going" & Popularity System** — Add "Eu vou" button, track attendance counts, and implement logic to badge events as "Popular" or "High Attendance". `M`
 16. [ ] **Coupons & Discounts Page** — Develop a page to display discount coupons (manual entry or scraped), filterable by state, to provide extra value to runners. `S`
 17. [ ] **Deployment & Final Polish** — Configure production environment (Vercel/Railway/Supabase), fix mobile-specific connection issues (CORS/SSL), optimize assets, and perform final E2E testing on real devices. `M`
+18. [ ] **Scraper Enhancement: Photos & Prices** — Improve scraper to reliably capture event images and pricing information. Refine selectors and logic to handle various site structures. `S`
 
 > Notes
 > - **Security First**: Integrity features are prioritized to ensure a stable foundation.

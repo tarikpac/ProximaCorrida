@@ -26,10 +26,12 @@ import { PrismaModule } from './prisma/prisma.module';
       }),
       inject: [ConfigService],
     }),
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 100,
-    }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
     EventsModule,
     ScraperModule,
     SupabaseModule,
@@ -45,4 +47,4 @@ import { PrismaModule } from './prisma/prisma.module';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useEventFilters } from "./use-event-filters";
 
 export interface Event {
@@ -22,7 +22,7 @@ interface EventsResponse {
         total: number;
         page: number;
         limit: number;
-        last_page: number;
+        totalPages: number;
     };
 }
 
@@ -39,9 +39,9 @@ async function fetchEvents(filters: ReturnType<typeof useEventFilters>['filters'
 
     // Default params
     params.append("limit", "12");
-    params.append("page", "1"); // TODO: Add pagination state
+    params.append("page", filters.page.toString());
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
     const res = await fetch(`${API_URL}/events?${params.toString()}`);
     if (!res.ok) {
         throw new Error('Failed to fetch events');
@@ -55,5 +55,6 @@ export function useEvents() {
     return useQuery<EventsResponse>({
         queryKey: ['events', filters],
         queryFn: () => fetchEvents(filters),
+        placeholderData: keepPreviousData,
     });
 }

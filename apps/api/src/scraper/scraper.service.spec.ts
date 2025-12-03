@@ -14,6 +14,7 @@ describe('ScraperService', () => {
       providers: [
         ScraperService,
         { provide: EventsService, useValue: mockEventsService },
+        { provide: 'BullQueue_scraper', useValue: { add: jest.fn() } },
       ],
     }).compile();
 

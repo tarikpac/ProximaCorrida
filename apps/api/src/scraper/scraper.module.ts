@@ -17,4 +17,4 @@ import { ScraperSchedulerService } from './scraper.scheduler.service';
   exports: [ScraperService],
   controllers: [ScraperController],
 })
-export class ScraperModule { }
+export class ScraperModule {}

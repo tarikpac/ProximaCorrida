@@ -22,6 +22,7 @@ describe('EventsService', () => {
       providers: [
         EventsService,
         { provide: SupabaseService, useValue: mockSupabaseService },
+        { provide: 'BullQueue_notifications', useValue: { add: jest.fn() } },
       ],
     }).compile();
 

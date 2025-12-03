@@ -1,45 +1,48 @@
 import {
-    ExceptionFilter,
-    Catch,
-    ArgumentsHost,
-    HttpException,
-    HttpStatus,
-    Logger,
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
-    private readonly logger = new Logger(GlobalExceptionFilter.name);
+  private readonly logger = new Logger(GlobalExceptionFilter.name);
 
-    catch(exception: unknown, host: ArgumentsHost) {
-        const ctx = host.switchToHttp();
-        const response = ctx.getResponse<Response>();
-        const request = ctx.getRequest<Request>();
+  catch(exception: unknown, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest<Request>();
 
-        let status = HttpStatus.INTERNAL_SERVER_ERROR;
-        let message = 'Internal Server Error';
+    let status = HttpStatus.INTERNAL_SERVER_ERROR;
+    let message = 'Internal Server Error';
 
-        if (exception instanceof HttpException) {
-            status = exception.getStatus();
-            const exceptionResponse = exception.getResponse();
-            message =
-                typeof exceptionResponse === 'string'
-                    ? exceptionResponse
-                    : (exceptionResponse as any).message || exception.message;
-        } else {
-            // Log the full error for internal server errors
-            this.logger.error(
-                `Internal Server Error: ${exception instanceof Error ? exception.message : exception}`,
-                exception instanceof Error ? exception.stack : '',
-            );
-        }
-
-        response.status(status).json({
-            statusCode: status,
-            message: status === HttpStatus.INTERNAL_SERVER_ERROR ? 'Internal Server Error' : message,
-            timestamp: new Date().toISOString(),
-            path: request.url,
-        });
+    if (exception instanceof HttpException) {
+      status = exception.getStatus();
+      const exceptionResponse = exception.getResponse();
+      message =
+        typeof exceptionResponse === 'string'
+          ? exceptionResponse
+          : (exceptionResponse as any).message || exception.message;
+    } else {
+      // Log the full error for internal server errors
+      this.logger.error(
+        `Internal Server Error: ${exception instanceof Error ? exception.message : exception}`,
+        exception instanceof Error ? exception.stack : '',
+      );
     }
+
+    response.status(status).json({
+      statusCode: status,
+      message:
+        status === HttpStatus.INTERNAL_SERVER_ERROR
+          ? 'Internal Server Error'
+          : message,
+      timestamp: new Date().toISOString(),
+      path: request.url,
+    });
+  }
 }

@@ -4,278 +4,346 @@ import { Prisma } from '@prisma/client';
 import { SearchEventsDto } from './dto/search-events.dto';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { StandardizedEvent } from '../scraper/interfaces/standardized-event.interface';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class EventsService {
-    private readonly logger = new Logger(EventsService.name);
+  private readonly logger = new Logger(EventsService.name);
 
-    constructor(
-        private supabase: SupabaseService,
-        @InjectQueue('notifications') private notificationsQueue: Queue,
-    ) { }
+  constructor(
+    private supabase: SupabaseService,
+    private prisma: PrismaService,
+    @InjectQueue('notifications') private notificationsQueue: Queue,
+  ) { }
 
-    async create(data: Prisma.EventCreateInput) {
-        const { data: result, error } = await this.supabase.getClient()
-            .from('Event')
-            .insert({
-                ...data,
-                id: crypto.randomUUID(),
-                updatedAt: new Date(),
-                createdAt: new Date()
-            })
-            .select()
-            .single();
+  async create(data: Prisma.EventCreateInput) {
+    // Use Prisma for create to ensure permissions
+    const result = await this.prisma.event.create({
+      data: {
+        ...data,
+        updatedAt: new Date(),
+        createdAt: new Date(),
+      },
+    });
+    return result;
+  }
 
-        if (error) throw new Error(error.message);
-        return result;
+  async findAll(query: SearchEventsDto) {
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.EventWhereInput = {};
+
+    if (query.state) {
+      where.state = query.state;
     }
 
-    async findAll(query: SearchEventsDto) {
-        let builder = this.supabase.getClient()
-            .from('Event')
-            .select('*', { count: 'exact' });
-
-        if (query.state) {
-            builder = builder.eq('state', query.state);
-        }
-
-        if (query.city) {
-            builder = builder.ilike('city', `%${query.city}%`);
-        }
-
-        if (query.from) {
-            builder = builder.gte('date', query.from);
-        }
-
-        if (query.to) {
-            builder = builder.lte('date', query.to);
-        }
-
-        if (query.query) {
-            builder = builder.ilike('title', `%${query.query}%`);
-        }
-
-        if (query.distances && query.distances.length > 0) {
-            // This is tricky with Supabase/Postgres array columns. 
-            // Assuming 'distances' is a text array or similar.
-            // For now, let's use 'cs' (contains) if it's an array column, or simple text search.
-            // Since we normalized distances, we can check if the array overlaps.
-            builder = builder.overlaps('distances', query.distances);
-        }
-
-        // Pagination
-        const page = query.page || 1;
-        const limit = query.limit || 10;
-        const from = (page - 1) * limit;
-        const to = from + limit - 1;
-
-        builder = builder.range(from, to).order('date', { ascending: true });
-
-        const { data, error, count } = await builder;
-
-        if (error) throw new Error(error.message);
-
-        return {
-            data,
-            meta: {
-                total: count,
-                page,
-                limit,
-                totalPages: Math.ceil((count || 0) / limit),
-            }
-        };
+    if (query.city) {
+      where.city = { contains: query.city, mode: 'insensitive' };
     }
 
-    async findOne(id: string) {
-        const { data, error } = await this.supabase.getClient()
-            .from('Event')
-            .select('*')
-            .eq('id', id)
-            .single();
-
-        if (error) throw new Error(error.message);
-        return data;
+    if (query.from) {
+      where.date = { ...(where.date as Prisma.DateTimeFilter), gte: query.from };
     }
 
-    async update(id: string, data: Prisma.EventUpdateInput) {
-        const { data: result, error } = await this.supabase.getClient()
-            .from('Event')
-            .update({ ...data, updatedAt: new Date() })
-            .eq('id', id)
-            .select()
-            .single();
-
-        if (error) throw new Error(error.message);
-        return result;
+    if (query.to) {
+      where.date = { ...(where.date as Prisma.DateTimeFilter), lte: query.to };
     }
 
-    async remove(id: string) {
-        const { error } = await this.supabase.getClient()
-            .from('Event')
-            .delete()
-            .eq('id', id);
-
-        if (error) throw new Error(error.message);
-        return { message: 'Event deleted successfully' };
+    if (query.query) {
+      where.title = { contains: query.query, mode: 'insensitive' };
     }
 
-    async upsertBySourceUrl(data: Prisma.EventCreateInput) {
-        const { data: existing } = await this.supabase.getClient()
-            .from('Event')
-            .select('id')
-            .eq('sourceUrl', data.sourceUrl)
-            .single();
-
-        if (existing) {
-            // Update
-            const { id, ...updateData } = data as any;
-
-            // Normalize distances
-            if (updateData.distances) {
-                updateData.distances = Array.from(new Set(updateData.distances.map((d: string) => this.normalizeDistance(d))));
-            }
-
-            const finalUpdateData = { ...updateData, updatedAt: new Date() };
-            const { data: result, error } = await this.supabase.getClient()
-                .from('Event')
-                .update(finalUpdateData)
-                .eq('id', existing.id)
-                .select()
-                .single();
-
-            if (error) {
-                this.logger.error(`Update failed: ${error.message}`);
-                throw new Error(error.message);
-            }
-            return result;
-        } else {
-            // Insert
-            const insertData = {
-                ...data,
-                id: crypto.randomUUID(),
-                updatedAt: new Date(),
-                createdAt: new Date()
-            };
-
-            // Normalize distances
-            if (insertData.distances && Array.isArray(insertData.distances)) {
-                insertData.distances = Array.from(new Set(insertData.distances.map((d: string) => this.normalizeDistance(d))));
-            }
-
-            const { data: result, error } = await this.supabase.getClient()
-                .from('Event')
-                .insert(insertData)
-                .select()
-                .single();
-
-            if (error) {
-                this.logger.error(`Insert failed: ${error.message}`);
-                throw new Error(error.message);
-            }
-
-            // Trigger Push Notification Job
-            try {
-                await this.notificationsQueue.add('send-push-notification', {
-                    eventId: result.id,
-                    eventTitle: result.title,
-                    eventDate: result.date,
-                    eventCity: result.city,
-                    eventState: result.state,
-                });
-                this.logger.log(`Enqueued push notification for event ${result.id}`);
-            } catch (queueError) {
-                this.logger.error(`Failed to enqueue push notification for event ${result.id}`, queueError);
-                // Don't fail the request if queueing fails
-            }
-
-            return result;
-        }
+    if (query.distances && query.distances.length > 0) {
+      where.distances = { hasSome: query.distances };
     }
 
-    async getCities(state?: string) {
-        let query = this.supabase.getClient()
-            .from('Event')
-            .select('city');
+    const [data, total] = await Promise.all([
+      this.prisma.event.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { date: 'asc' },
+      }),
+      this.prisma.event.count({ where }),
+    ]);
 
-        if (state) {
-            query = query.eq('state', state);
-        }
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
 
-        const { data, error } = await query;
-        if (error) throw new Error(error.message);
+  async findOne(id: string) {
+    const data = await this.prisma.event.findUnique({
+      where: { id },
+    });
 
-        // Unique cities
-        const cities = Array.from(new Set(data.map(e => e.city))).sort();
-        return cities;
-    }
+    if (!data) throw new Error('Event not found');
+    return data;
+  }
 
-    private normalizeDistance(dist: string): string {
-        // Remove whitespace
-        let clean = dist.trim().toLowerCase();
+  async update(id: string, data: Prisma.EventUpdateInput) {
+    // Use Prisma for update
+    const result = await this.prisma.event.update({
+      where: { id },
+      data: { ...data, updatedAt: new Date() },
+    });
+    return result;
+  }
 
-        // Handle "k", "km"
-        clean = clean.replace(/k?m?$/i, '');
+  async remove(id: string) {
+    // Use Prisma for delete
+    await this.prisma.event.delete({
+      where: { id },
+    });
+    return { message: 'Event deleted successfully' };
+  }
 
-        // Handle comma/dot
-        // If it has a comma, keep it if it's like 7,5. 
-        // But let's standardize to "5km", "10km".
-        // If it's just a number, append km.
+  async upsertBySourceUrl(data: Prisma.EventCreateInput) {
+    const existing = await this.prisma.event.findUnique({
+      where: { sourceUrl: data.sourceUrl },
+    });
 
-        // Regex to extract number part
-        const match = clean.match(/^(\d+(?:[.,]\d+)?)/);
-        if (match) {
-            let number = match[1];
-            // Optional: standardize decimal separator? 
-            // Let's keep it as is for now, just ensure 'km' suffix.
-            return `${number}km`;
-        }
-        return dist; // Fallback
-    }
+    if (existing) {
+      // Update
+      const { id, ...updateData } = data as any;
 
-    async normalizeAllDistances() {
-        const { data: events, error } = await this.supabase.getClient()
-            .from('Event')
-            .select('id, distances');
+      // Normalize distances
+      if (updateData.distances) {
+        updateData.distances = Array.from(
+          new Set(
+            updateData.distances.map((d: string) => this.normalizeDistance(d)),
+          ),
+        );
+      }
 
-        if (error) throw new Error(error.message);
+      const finalUpdateData = { ...updateData, updatedAt: new Date() };
+      const result = await this.prisma.event.update({
+        where: { id: existing.id },
+        data: finalUpdateData,
+      });
+      return result;
+    } else {
+      // Insert
+      const insertData = {
+        ...data,
+        updatedAt: new Date(),
+        createdAt: new Date(),
+      };
 
-        let updatedCount = 0;
+      // Normalize distances
+      if (insertData.distances && Array.isArray(insertData.distances)) {
+        insertData.distances = Array.from(
+          new Set(
+            insertData.distances.map((d: string) => this.normalizeDistance(d)),
+          ),
+        );
+      }
 
-        for (const event of events) {
-            const originalDistances = event.distances || [];
-            const newDistances = Array.from(new Set(originalDistances.map((d: string) => this.normalizeDistance(d))));
+      const result = await this.prisma.event.create({
+        data: insertData as any,
+      });
 
-            // Check if changed
-            if (JSON.stringify(originalDistances) !== JSON.stringify(newDistances)) {
-                await this.supabase.getClient()
-                    .from('Event')
-                    .update({ distances: newDistances })
-                    .eq('id', event.id);
-                updatedCount++;
-            }
-        }
-
-        return { message: `Normalized distances for ${updatedCount} events` };
-    }
-
-    async getEventsByStateCount() {
-        const { data, error } = await this.supabase.getClient()
-            .from('Event')
-            .select('state');
-
-        if (error) throw new Error(error.message);
-
-        const counts: Record<string, number> = {};
-
-        data.forEach((event: any) => {
-            const state = event.state?.toUpperCase();
-            if (state) {
-                counts[state] = (counts[state] || 0) + 1;
-            }
+      // Trigger Push Notification Job
+      try {
+        await this.notificationsQueue.add('send-push-notification', {
+          eventId: result.id,
+          eventTitle: result.title,
+          eventDate: result.date,
+          eventCity: result.city,
+          eventState: result.state,
         });
+        this.logger.log(`Enqueued push notification for event ${result.id}`);
+      } catch (queueError) {
+        this.logger.error(
+          `Failed to enqueue push notification for event ${result.id}`,
+          queueError,
+        );
+        // Don't fail the request if queueing fails
+      }
 
-        return Object.entries(counts)
-            .map(([state, count]) => ({ state, count }))
-            .sort((a, b) => a.state.localeCompare(b.state));
+      return result;
     }
+  }
+
+  async getCities(state?: string) {
+    const where: Prisma.EventWhereInput = {};
+    if (state) {
+      where.state = state;
+    }
+
+    const events = await this.prisma.event.findMany({
+      where,
+      select: { city: true },
+      distinct: ['city'],
+      orderBy: { city: 'asc' },
+    });
+
+    return events.map((e) => e.city);
+  }
+
+  private normalizeDistance(dist: string): string {
+    // Remove whitespace
+    let clean = dist.trim().toLowerCase();
+
+    // Handle "k", "km"
+    clean = clean.replace(/k?m?$/i, '');
+
+    // Handle comma/dot
+    // If it has a comma, keep it if it's like 7,5.
+    // But let's standardize to "5km", "10km".
+    // If it's just a number, append km.
+
+    // Regex to extract number part
+    const match = clean.match(/^(\d+(?:[.,]\d+)?)/);
+    if (match) {
+      const number = match[1];
+      // Optional: standardize decimal separator?
+      // Let's keep it as is for now, just ensure 'km' suffix.
+      return `${number}km`;
+    }
+    return dist; // Fallback
+  }
+
+  async normalizeAllDistances() {
+    const events = await this.prisma.event.findMany({
+      select: { id: true, distances: true },
+    });
+
+    let updatedCount = 0;
+
+    for (const event of events) {
+      const originalDistances = event.distances || [];
+      const newDistances = Array.from(
+        new Set(
+          originalDistances.map((d: string) => this.normalizeDistance(d)),
+        ),
+      );
+
+      // Check if changed
+      if (JSON.stringify(originalDistances) !== JSON.stringify(newDistances)) {
+        await this.prisma.event.update({
+          where: { id: event.id },
+          data: { distances: newDistances },
+        });
+        updatedCount++;
+      }
+    }
+
+    return { message: `Normalized distances for ${updatedCount} events` };
+  }
+
+  async getEventsByStateCount() {
+    const events = await this.prisma.event.groupBy({
+      by: ['state'],
+      _count: {
+        state: true,
+      },
+    });
+
+    return events
+      .map((e) => ({
+        state: e.state,
+        count: e._count.state,
+      }))
+      .sort((a, b) => a.state.localeCompare(b.state));
+  }
+
+  async upsertFromStandardized(evt: StandardizedEvent) {
+    // Deduplication logic using Prisma
+    let existing = null;
+
+    if (evt.sourceEventId) {
+      existing = await this.prisma.event.findFirst({
+        where: {
+          sourcePlatform: evt.sourcePlatform,
+          sourceEventId: evt.sourceEventId,
+        },
+      });
+    }
+
+    if (!existing) {
+      existing = await this.prisma.event.findFirst({
+        where: {
+          sourcePlatform: evt.sourcePlatform,
+          sourceUrl: evt.sourceUrl,
+        },
+      });
+    }
+
+    // Prepare data
+    const eventData: any = {
+      title: evt.title,
+      date: evt.date,
+      city: evt.city || 'Unknown',
+      state: evt.state || 'PB',
+      distances: evt.distances,
+      regLink: evt.regUrl || '',
+      sourceUrl: evt.sourceUrl,
+      imageUrl: evt.imageUrl,
+      price: evt.priceText || 'Sob Consulta', // Map priceText to price (legacy field)
+      // New fields
+      sourcePlatform: evt.sourcePlatform,
+      sourceEventId: evt.sourceEventId,
+      rawLocation: evt.rawLocation,
+      priceText: evt.priceText,
+      priceMin: evt.priceMin,
+      updatedAt: new Date(),
+    };
+
+    // Normalize distances
+    if (eventData.distances) {
+      eventData.distances = Array.from(
+        new Set(
+          eventData.distances.map((d: string) => this.normalizeDistance(d)),
+        ),
+      );
+    }
+
+    if (existing) {
+      // Update
+      const result = await this.prisma.event.update({
+        where: { id: existing.id },
+        data: eventData,
+      });
+      return result;
+    } else {
+      // Insert
+      const insertData = {
+        ...eventData,
+        createdAt: new Date(),
+      };
+
+      const result = await this.prisma.event.create({
+        data: insertData,
+      });
+
+      // Trigger Push Notification Job
+      try {
+        await this.notificationsQueue.add('send-push-notification', {
+          eventId: result.id,
+          eventTitle: result.title,
+          eventDate: result.date,
+          eventCity: result.city,
+          eventState: result.state,
+        });
+        this.logger.log(`Enqueued push notification for event ${result.id}`);
+      } catch (queueError) {
+        this.logger.error(
+          `Failed to enqueue push notification for event ${result.id}`,
+          queueError,
+        );
+      }
+
+      return result;
+    }
+  }
 }

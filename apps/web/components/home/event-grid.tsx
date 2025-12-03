@@ -12,7 +12,7 @@ import { useEventFilters } from "@/hooks/use-event-filters";
 export function EventGrid() {
     const [isMounted, setIsMounted] = useState(false);
     const { data: response, isLoading, error } = useEvents();
-    const { clearFilters } = useEventFilters();
+    const { clearFilters, setFilters } = useEventFilters();
     const events = response?.data || [];
 
     useEffect(() => {
@@ -71,7 +71,7 @@ export function EventGrid() {
                     <div className="flex items-center gap-3">
                         <div className="w-3 h-8 bg-lime-400 -skew-x-12" />
                         <h2 className="text-3xl md:text-4xl font-black italic uppercase text-white tracking-tighter">
-                            Destaques da Semana
+                            Próximos Eventos
                         </h2>
                     </div>
 
@@ -118,6 +118,31 @@ export function EventGrid() {
                     })}
                 </div>
             </div>
+
+            {/* Pagination */}
+            {response?.meta && response.meta.totalPages > 1 && (
+                <div className="mt-12 flex justify-center items-center gap-4">
+                    <button
+                        onClick={() => setFilters({ page: (response.meta.page || 1) - 1 })}
+                        disabled={response.meta.page <= 1}
+                        className="px-4 py-2 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-mono text-sm uppercase"
+                    >
+                        Anterior
+                    </button>
+
+                    <span className="text-zinc-500 font-mono text-sm">
+                        Página <span className="text-white">{response.meta.page}</span> de <span className="text-white">{response.meta.totalPages}</span>
+                    </span>
+
+                    <button
+                        onClick={() => setFilters({ page: (response.meta.page || 1) + 1 })}
+                        disabled={response.meta.page >= response.meta.totalPages}
+                        className="px-4 py-2 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-mono text-sm uppercase"
+                    >
+                        Próxima
+                    </button>
+                </div>
+            )}
         </section>
     );
 }

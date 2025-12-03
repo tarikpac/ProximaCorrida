@@ -12,9 +12,7 @@ describe('ScraperController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ScraperController],
-      providers: [
-        { provide: ScraperService, useValue: mockScraperService },
-      ],
+      providers: [{ provide: ScraperService, useValue: mockScraperService }],
     }).compile();
 
     controller = module.get<ScraperController>(ScraperController);

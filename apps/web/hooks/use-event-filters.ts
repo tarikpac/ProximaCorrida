@@ -11,6 +11,7 @@ export interface EventFilters {
     distances: string[];
     types: string[];
     query?: string;
+    page: number;
 }
 
 export function useEventFilters() {
@@ -21,6 +22,7 @@ export function useEventFilters() {
     // Parse current filters from URL
     const filters: EventFilters = useMemo(() => {
         const stateFromPath = pathname.startsWith('/br/') ? pathname.split('/br/')[1].split('/')[0] : 'pb'; // Default to PB if not in path, or handle logic
+        const pageParam = searchParams.get("page");
 
         return {
             state: stateFromPath.toUpperCase(),
@@ -30,6 +32,7 @@ export function useEventFilters() {
             distances: searchParams.get("distances")?.split(",") || [],
             types: searchParams.get("types")?.split(",") || [],
             query: searchParams.get("query") || undefined,
+            page: pageParam ? parseInt(pageParam) : 1,
         };
     }, [pathname, searchParams]);
 
@@ -49,21 +52,16 @@ export function useEventFilters() {
             }
         }
 
-        // Handle other params
-        if (newFilters.city !== undefined) {
-            if (newFilters.city) params.set("city", newFilters.city);
-            else params.delete("city");
-        }
+        // Helper to set or delete param
+        const updateParam = (key: string, value: string | undefined) => {
+            if (value) params.set(key, value);
+            else params.delete(key);
+        };
 
-        if (newFilters.from !== undefined) {
-            if (newFilters.from) params.set("from", newFilters.from);
-            else params.delete("from");
-        }
-
-        if (newFilters.to !== undefined) {
-            if (newFilters.to) params.set("to", newFilters.to);
-            else params.delete("to");
-        }
+        if (newFilters.city !== undefined) updateParam("city", newFilters.city);
+        if (newFilters.from !== undefined) updateParam("from", newFilters.from);
+        if (newFilters.to !== undefined) updateParam("to", newFilters.to);
+        if (newFilters.query !== undefined) updateParam("query", newFilters.query);
 
         if (newFilters.distances !== undefined) {
             if (newFilters.distances.length > 0) params.set("distances", newFilters.distances.join(","));
@@ -75,13 +73,20 @@ export function useEventFilters() {
             else params.delete("types");
         }
 
-        if (newFilters.query !== undefined) {
-            if (newFilters.query) params.set("query", newFilters.query);
-            else params.delete("query");
+        // Pagination Logic
+        if (newFilters.page !== undefined) {
+            // Explicit page change
+            if (newFilters.page > 1) params.set("page", newFilters.page.toString());
+            else params.delete("page");
+        } else {
+            // Filter change - reset to page 1
+            // We only reset page if we are NOT explicitly changing the page
+            // and if we are changing other filters that affect results
+            const isPaginationOnly = Object.keys(newFilters).length === 1 && 'page' in newFilters;
+            if (!isPaginationOnly) {
+                params.delete("page");
+            }
         }
-
-        // Reset page on filter change (optional but good UX)
-        // params.delete("page"); 
 
         const finalUrl = `${newPath}?${params.toString()}`;
         router.push(finalUrl, { scroll: false });
