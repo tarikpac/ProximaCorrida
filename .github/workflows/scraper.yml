@@ -1,0 +1,16 @@
+name: Daily Scraper Trigger
+
+on:
+  schedule:
+    # Runs at 06:00 UTC (03:00 AM Brasilia Time)
+    - cron: '0 6 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  trigger-scraper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Scraper API
+        run: |
+          curl -X POST https://proxima-corrida.onrender.com/scraper/trigger \
+          -H "Content-Type: application/json"
