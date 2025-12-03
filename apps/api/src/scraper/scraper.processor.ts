@@ -5,8 +5,8 @@ import { ScraperService } from './scraper.service';
 
 @Processor('scraper', {
   concurrency: 3,
-  // Extreme Redis savings: wait 1 hour when queue is empty before checking again
-  drainDelay: 3600000,
+  // Extreme Redis savings: wait 2 hours when queue is empty before checking again
+  drainDelay: 7200000,
   // Increase lock duration to reduce renewal requests
   lockDuration: 60000
 })
