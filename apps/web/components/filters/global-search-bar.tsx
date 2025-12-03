@@ -11,7 +11,7 @@ export function GlobalSearchBar() {
     // Debounce update
     useEffect(() => {
         const timer = setTimeout(() => {
-            if (value !== filters.query) {
+            if (value !== (filters.query || "")) {
                 setFilters({ query: value || undefined });
             }
         }, 500);
