@@ -29,6 +29,12 @@ import { PrismaModule } from './prisma/prisma.module';
               username: url.username,
               password: url.password,
               tls: url.protocol === 'rediss:' ? { rejectUnauthorized: false } : undefined,
+              maxRetriesPerRequest: null,
+              enableReadyCheck: false,
+              retryStrategy: (times) => {
+                // Exponential backoff: 50ms, 100ms, 200ms... up to 2000ms
+                return Math.min(times * 50, 2000);
+              },
             },
           };
         }
@@ -37,6 +43,7 @@ import { PrismaModule } from './prisma/prisma.module';
           connection: {
             host: configService.get('REDIS_HOST') || 'localhost',
             port: configService.get('REDIS_PORT') || 6379,
+            maxRetriesPerRequest: null,
           },
         };
       },
