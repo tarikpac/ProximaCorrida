@@ -2,24 +2,21 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY apps/api/package*.json ./apps/api/
-COPY apps/api/prisma ./apps/api/prisma/
+# Copy API package files directly to root of WORKDIR
+COPY apps/api/package*.json ./
+COPY apps/api/prisma ./prisma/
 
 # Install dependencies
 RUN npm ci
 
-# Copy source code
-COPY . .
+# Copy API source code
+COPY apps/api/ .
 
 # Generate Prisma Client
-WORKDIR /app/apps/api
 RUN npx prisma generate
-WORKDIR /app
 
 # Build the API
-RUN npm run build --workspace=apps/api
+RUN npm run build
 
 # Production image
 FROM node:20-alpine
@@ -27,12 +24,9 @@ FROM node:20-alpine
 WORKDIR /app
 
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/apps/api/package.json ./package.json
-COPY --from=builder /app/apps/api/prisma ./prisma
-
-# Install only production dependencies (optional optimization, skipping for simplicity/safety first)
-# RUN npm ci --only=production
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/prisma ./prisma
 
 EXPOSE 3333
 
