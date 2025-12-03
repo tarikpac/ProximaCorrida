@@ -1,29 +1,38 @@
-FROM mcr.microsoft.com/playwright:v1.56.1-jammy
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+COPY apps/api/package*.json ./apps/api/
 COPY prisma ./prisma/
 
 # Install dependencies
-RUN npm install
-
-# Generate Prisma Client
-RUN npx prisma generate
+RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Build the application
-RUN npm run build
+# Generate Prisma Client
+RUN npx prisma generate
 
-# Expose API port
-EXPOSE 3000
+# Build the API
+RUN npm run build --workspace=apps/api
 
-# Copy start script
-COPY start.sh .
-RUN chmod +x start.sh
+# Production image
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/api/dist ./dist
+COPY --from=builder /app/apps/api/package.json ./package.json
+COPY --from=builder /app/prisma ./prisma
+
+# Install only production dependencies (optional optimization, skipping for simplicity/safety first)
+# RUN npm ci --only=production
+
+EXPOSE 3333
 
 # Start the application
-CMD ["./start.sh"]
+CMD ["node", "dist/src/main"]
