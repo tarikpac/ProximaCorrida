@@ -4,7 +4,12 @@ import { Logger } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 
-@Processor('notifications')
+@Processor('notifications', {
+  // Extreme Redis savings: wait 1 hour when queue is empty before checking again
+  drainDelay: 3600000,
+  // Increase lock duration to reduce renewal requests
+  lockDuration: 60000
+})
 export class NotificationsProcessor extends WorkerHost {
   private readonly logger = new Logger(NotificationsProcessor.name);
 

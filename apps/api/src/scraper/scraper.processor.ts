@@ -3,7 +3,13 @@ import { Job } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { ScraperService } from './scraper.service';
 
-@Processor('scraper', { concurrency: 3 })
+@Processor('scraper', {
+  concurrency: 3,
+  // Extreme Redis savings: wait 1 hour when queue is empty before checking again
+  drainDelay: 3600000,
+  // Increase lock duration to reduce renewal requests
+  lockDuration: 60000
+})
 export class ScraperProcessor extends WorkerHost {
   private readonly logger = new Logger(ScraperProcessor.name);
 
