@@ -45,7 +45,7 @@ interface StateCount {
 
 async function getEventCounts(): Promise<StateCount[]> {
     try {
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
         const res = await fetch(`${API_URL}/events/stats/by-state`, { next: { revalidate: 3600 } });
         if (!res.ok) return [];
         return await res.json();
