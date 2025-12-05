@@ -4,7 +4,7 @@ import { Logger } from '@nestjs/common';
 import { ScraperService } from './scraper.service';
 
 @Processor('scraper', {
-  concurrency: 3,
+  concurrency: 1,
   // Testing if BullMQ multiplies by 1000. 3600 = 1 hour if unit is seconds.
   drainDelay: 3600,
   // Increase lock duration to reduce renewal requests
