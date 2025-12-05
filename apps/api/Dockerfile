@@ -19,14 +19,24 @@ RUN npx prisma generate
 RUN npm run build
 
 # Production image
-FROM node:20-alpine
+FROM mcr.microsoft.com/playwright:v1.49.0-jammy
 
 WORKDIR /app
 
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
+# Set ENV for Playwright to work in Docker
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/prisma ./prisma
+# Copy only production dependencies if possible, or copy all and prune. 
+# For safety here we re-install production deps to ensure architecture match (since builder was alpine)
+COPY --from=builder /app/package-lock.json ./package-lock.json
+RUN npm ci --only=production
+
+COPY --from=builder /app/dist ./dist
+
+# Install Chromium specifically
+RUN npx playwright install chromium
 
 EXPOSE 3333
 
