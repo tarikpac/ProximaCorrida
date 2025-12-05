@@ -11,10 +11,14 @@ import { ScraperSchedulerService } from './scraper.scheduler.service';
     EventsModule,
     BullModule.registerQueue({
       name: 'scraper',
+      defaultJobOptions: {
+        removeOnComplete: true,
+        removeOnFail: 100,
+      },
     }),
   ],
   providers: [ScraperService, ScraperProcessor, ScraperSchedulerService],
   exports: [ScraperService],
   controllers: [ScraperController],
 })
-export class ScraperModule {}
+export class ScraperModule { }

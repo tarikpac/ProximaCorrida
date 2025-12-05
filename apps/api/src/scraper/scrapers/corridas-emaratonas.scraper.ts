@@ -4,18 +4,33 @@ import { StandardizedEvent } from '../interfaces/standardized-event.interface';
 import { Logger } from '@nestjs/common';
 
 const STATE_URLS = [
-  {
-    state: 'PB',
-    url: 'https://corridasemaratonas.com.br/corridas-na-paraiba/',
-  },
-  {
-    state: 'PE',
-    url: 'https://corridasemaratonas.com.br/corridas-em-pernambuco/',
-  },
-  {
-    state: 'RN',
-    url: 'https://corridasemaratonas.com.br/corridas-no-rio-grande-do-norte/',
-  },
+  { state: 'AC', url: 'https://corridasemaratonas.com.br/corridas-no-acre/' },
+  { state: 'AL', url: 'https://corridasemaratonas.com.br/corridas-no-alagoas/' },
+  { state: 'AP', url: 'https://corridasemaratonas.com.br/corridas-no-amapa/' },
+  { state: 'AM', url: 'https://corridasemaratonas.com.br/corridas-no-amazonas/' },
+  { state: 'BA', url: 'https://corridasemaratonas.com.br/corridas-na-bahia/' },
+  { state: 'CE', url: 'https://corridasemaratonas.com.br/corridas-no-ceara/' },
+  { state: 'DF', url: 'https://corridasemaratonas.com.br/corridas-no-distrito-federal/' },
+  { state: 'ES', url: 'https://corridasemaratonas.com.br/corridas-no-espirito-santo/' },
+  { state: 'GO', url: 'https://corridasemaratonas.com.br/corridas-em-goias/' },
+  { state: 'MA', url: 'https://corridasemaratonas.com.br/corridas-no-maranhao/' },
+  { state: 'MT', url: 'https://corridasemaratonas.com.br/corridas-no-mato-grosso/' },
+  { state: 'MS', url: 'https://corridasemaratonas.com.br/corridas-no-mato-grosso-do-sul/' },
+  { state: 'MG', url: 'https://corridasemaratonas.com.br/corridas-em-minas-gerais/' },
+  { state: 'PA', url: 'https://corridasemaratonas.com.br/corridas-no-para/' },
+  { state: 'PB', url: 'https://corridasemaratonas.com.br/corridas-na-paraiba/' },
+  { state: 'PR', url: 'https://corridasemaratonas.com.br/corridas-no-parana/' },
+  { state: 'PE', url: 'https://corridasemaratonas.com.br/corridas-em-pernambuco/' },
+  { state: 'PI', url: 'https://corridasemaratonas.com.br/corridas-no-piaui/' },
+  { state: 'RJ', url: 'https://corridasemaratonas.com.br/corridas-no-rio-de-janeiro/' },
+  { state: 'RN', url: 'https://corridasemaratonas.com.br/corridas-no-rio-grande-do-norte/' },
+  { state: 'RS', url: 'https://corridasemaratonas.com.br/corridas-no-rio-grande-do-sul/' },
+  { state: 'RO', url: 'https://corridasemaratonas.com.br/corridas-em-rondonia/' },
+  { state: 'RR', url: 'https://corridasemaratonas.com.br/corridas-em-roraima/' },
+  { state: 'SC', url: 'https://corridasemaratonas.com.br/corridas-em-santa-catarina/' },
+  { state: 'SP', url: 'https://corridasemaratonas.com.br/corridas-em-sao-paulo/' },
+  { state: 'SE', url: 'https://corridasemaratonas.com.br/corridas-em-sergipe/' },
+  { state: 'TO', url: 'https://corridasemaratonas.com.br/corridas-no-tocantins/' },
 ];
 
 export class CorridasEMaratonasScraper extends BaseScraper {

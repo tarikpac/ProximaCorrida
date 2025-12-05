@@ -12,10 +12,14 @@ import { NotificationsProcessor } from './notifications.processor';
     ConfigModule,
     BullModule.registerQueue({
       name: 'notifications',
+      defaultJobOptions: {
+        removeOnComplete: true,
+        removeOnFail: 100,
+      },
     }),
   ],
   controllers: [NotificationsController],
   providers: [NotificationsService, NotificationsProcessor],
   exports: [NotificationsService],
 })
-export class NotificationsModule {}
+export class NotificationsModule { }

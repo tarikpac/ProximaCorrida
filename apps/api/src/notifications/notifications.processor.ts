@@ -5,8 +5,8 @@ import { NotificationsService } from './notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Processor('notifications', {
-  // Extreme Redis savings: wait 2 hours when queue is empty before checking again
-  drainDelay: 7200000,
+  // Testing if BullMQ multiplies by 1000. 3600 = 1 hour if unit is seconds.
+  drainDelay: 3600,
   // Increase lock duration to reduce renewal requests
   lockDuration: 60000
 })
