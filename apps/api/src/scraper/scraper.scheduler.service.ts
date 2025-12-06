@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
@@ -14,7 +13,6 @@ export class ScraperSchedulerService {
     private readonly eventsService: EventsService,
   ) { }
 
-  // @Cron('0 3 * * *')
   async handleCron() {
     this.logger.log('Starting daily maintenance and scraper job...');
 
