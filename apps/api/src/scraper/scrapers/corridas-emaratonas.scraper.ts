@@ -37,9 +37,14 @@ export class CorridasEMaratonasScraper extends BaseScraper {
   readonly name = 'corridasemaratonas';
   private readonly logger = new Logger(CorridasEMaratonasScraper.name);
 
+  getSplits(): string[] {
+    return STATE_URLS.map((s) => s.state);
+  }
+
   async scrape(
     browser: Browser,
     onEventFound?: (event: StandardizedEvent) => Promise<void>,
+    filter?: string,
   ): Promise<StandardizedEvent[]> {
     const results: StandardizedEvent[] = [];
     const context = await browser.newContext({
@@ -52,7 +57,17 @@ export class CorridasEMaratonasScraper extends BaseScraper {
       },
     });
 
-    for (const config of STATE_URLS) {
+    let targets = STATE_URLS;
+    if (filter) {
+      targets = STATE_URLS.filter((s) => s.state === filter);
+      if (targets.length === 0) {
+        this.logger.warn(`Filter ${filter} matched no states.`);
+      } else {
+        this.logger.log(`Filtering scraper to state: ${filter}`);
+      }
+    }
+
+    for (const config of targets) {
       this.logger.log(`Scraping ${config.state} from ${config.url}`);
       try {
         const page = await context.newPage();

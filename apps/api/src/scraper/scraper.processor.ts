@@ -43,16 +43,18 @@ export class ScraperProcessor extends WorkerHost {
   }
 
   private async handleScrapePlatform(
-    job: Job<{ platform: string }>,
+    job: Job<{ platform: string; filter?: string }>,
   ): Promise<void> {
-    const platform = job.data.platform;
+    const { platform, filter } = job.data;
     this.logger.log(
-      `Starting platform scrape job ${job.id} for ${platform}...`,
+      `Starting platform scrape job ${job.id} for ${platform} ${filter ? `[${filter}]` : ''
+      }...`,
     );
     try {
-      await this.scraperService.runPlatform(platform);
+      await this.scraperService.runPlatform(platform, filter);
       this.logger.log(
-        `Platform scrape job ${job.id} for ${platform} completed.`,
+        `Platform scrape job ${job.id} for ${platform} ${filter ? `[${filter}]` : ''
+        } completed.`,
       );
     } catch (error) {
       this.logger.error(

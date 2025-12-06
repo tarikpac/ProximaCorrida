@@ -24,20 +24,49 @@ export class ScraperService {
   async enqueueAllPlatforms() {
     this.logger.log('Enqueuing jobs for all platforms...');
     for (const scraper of this.scrapers) {
-      await this.scraperQueue.add('scrape-platform', {
-        platform: scraper.name,
-      });
-      this.logger.log(`Enqueued scrape-platform job for ${scraper.name}`);
+      if (scraper.getSplits) {
+        const splits = scraper.getSplits();
+        this.logger.log(
+          `Scraper ${scraper.name} supports splitting. Enqueuing ${splits.length} jobs...`,
+        );
+        for (const split of splits) {
+          await this.scraperQueue.add(
+            'scrape-platform',
+            {
+              platform: scraper.name,
+              filter: split,
+            },
+            {
+              attempts: 3,
+              backoff: {
+                type: 'exponential',
+                delay: 60000, // 1 min delay if fails
+              },
+            },
+          );
+        }
+        this.logger.log(
+          `Enqueued ${splits.length} split jobs for ${scraper.name}`,
+        );
+      } else {
+        await this.scraperQueue.add('scrape-platform', {
+          platform: scraper.name,
+        });
+        this.logger.log(`Enqueued scrape-platform job for ${scraper.name}`);
+      }
     }
   }
 
-  async runPlatform(platformName: string) {
+  async runPlatform(platformName: string, filter?: string) {
     const scraper = this.scrapers.find((s) => s.name === platformName);
     if (!scraper) {
       throw new Error(`Scraper for platform ${platformName} not found`);
     }
 
-    this.logger.log(`Starting scrape for platform: ${platformName}`);
+    this.logger.log(
+      `Starting scrape for platform: ${platformName} ${filter ? `[Target: ${filter}]` : ''
+      }`,
+    );
     const browser = await chromium.launch({
       headless: true,
       args: [
@@ -63,10 +92,12 @@ export class ScraperService {
     };
 
     try {
-      const events = await scraper.scrape(browser, upsertEvent);
+      const events = await scraper.scrape(browser, upsertEvent, filter);
       this.logger.log(
-        `Scraped ${events.length} events from ${platformName}. (Real-time upsert enabled)`,
+        `Scraped ${events.length} events from ${platformName} ${filter ? `[${filter}]` : ''
+        }. (Real-time upsert enabled)`,
       );
+
 
       // If the scraper implementation doesn't support callback (or returned events for legacy reasons),
       // we could double-check, but assuming CorridasEMaratonasScraper will use the callback, we are good.
