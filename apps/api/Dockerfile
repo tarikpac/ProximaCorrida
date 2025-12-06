@@ -41,4 +41,4 @@ RUN npx playwright install chromium
 EXPOSE 3333
 
 # Start the application
-CMD ["node", "dist/src/main"]
+CMD ["/bin/sh", "-c", "npx prisma migrate deploy && node dist/src/main"]
