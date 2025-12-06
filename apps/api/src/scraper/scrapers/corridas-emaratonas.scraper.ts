@@ -93,12 +93,14 @@ export class CorridasEMaratonasScraper extends BaseScraper {
           `Found ${rawEvents.length} raw events for ${config.state}. Processing details...`,
         );
 
+        // Create one page for details to be reused
+        const detailsPage = await context.newPage();
+
         for (const raw of rawEvents) {
           if (!raw.detailsUrl) continue;
 
           try {
-            const detailsPage = await context.newPage();
-            await detailsPage.goto(raw.detailsUrl, { timeout: 30000 });
+            await detailsPage.goto(raw.detailsUrl, { timeout: 30000, waitUntil: 'domcontentloaded' });
 
             // Registration Link
             const regLink = await detailsPage.evaluate(() => {
@@ -125,14 +127,15 @@ export class CorridasEMaratonasScraper extends BaseScraper {
             let imageUrl: string | null = null;
             if (regLink) {
               try {
-                const regPage = await context.newPage();
-                await regPage.goto(regLink, {
+                // Navigate the SAME page to the registration link
+                // This saves memory by not opening a second tab/page
+                await detailsPage.goto(regLink, {
                   timeout: 45000,
                   waitUntil: 'domcontentloaded',
                 });
 
                 if (!priceText) {
-                  priceText = await regPage.evaluate(() => {
+                  priceText = await detailsPage.evaluate(() => {
                     const bodyText = document.body.innerText;
                     const priceMatch = bodyText.match(
                       /R\$\s?(\d{2,3}[.,]\d{2})/i,
@@ -141,7 +144,7 @@ export class CorridasEMaratonasScraper extends BaseScraper {
                   });
                 }
 
-                imageUrl = await regPage.evaluate(() => {
+                imageUrl = await detailsPage.evaluate(() => {
                   const ogImage = document.querySelector(
                     'meta[property="og:image"]',
                   );
@@ -163,15 +166,14 @@ export class CorridasEMaratonasScraper extends BaseScraper {
                   });
                   return bannerCandidate ? bannerCandidate.src : null;
                 });
-                await regPage.close();
+
+                // Go back or just stay, the next loop will overwrite the page URL
               } catch (e) {
                 this.logger.warn(
                   `Failed to load registration page for image/price: ${(e as Error).message}`,
                 );
               }
             }
-
-            await detailsPage.close();
 
             // Normalization
             const dateParts = raw.dateStr?.split('/');
@@ -200,23 +202,29 @@ export class CorridasEMaratonasScraper extends BaseScraper {
               title: raw.title || 'Untitled',
               date: eventDate,
               city: raw.city || null,
-              state: config.state, // Explicit from config
+              state: config.state,
               distances,
               regUrl: regLink || null,
               sourceUrl: raw.detailsUrl,
               sourcePlatform: this.name,
-              sourceEventId: null, // This platform doesn't have clear IDs
+              sourceEventId: null,
               imageUrl: imageUrl || null,
               priceText: priceText || null,
               priceMin,
               rawLocation: raw.city ? `${raw.city} - ${config.state}` : null,
             });
+
+            // Small delay to be gentle on CPU and Server
+            await new Promise(r => setTimeout(r, 1000));
+
           } catch (err) {
             this.logger.error(
               `Failed to process event ${raw.title}: ${(err as Error).message}`,
             );
           }
         }
+        // Close the reusable page after finishing the state
+        await detailsPage.close();
         await page.close();
       } catch (error) {
         this.logger.error(`Failed to scrape state ${config.state}`, error);
