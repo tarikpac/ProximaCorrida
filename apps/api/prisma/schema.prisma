@@ -37,6 +37,10 @@ model Event {
   updatedAt   DateTime @updatedAt
 
   @@index([sourcePlatform, sourceEventId])
+
+  // Soft Deletion / Archiving
+  isActive    Boolean  @default(true)
+  archivedAt  DateTime?
 }
 
 model PushSubscription {

@@ -60,6 +60,20 @@ export class EventsService {
       where.distances = { hasSome: query.distances };
     }
 
+    // Default Filter: Active Events Only (unless specified otherwise in future)
+    // Enforce that we only show active events by default
+    where.isActive = true;
+
+    // Default Filter: Upcoming/Today events (hide past events from default list)
+    // If explicit date range provided (from/to), we respect that (and query.from logic above handles it).
+    // If NO date range provided, we default to "From Today onwards".
+    if (!query.from && !query.to && !query.query) {
+      // Just to be safe, we filter >= today (00:00 BRT)
+      // This effectively hides "yesterday's" races if they weren't archived yet.
+      const todayStart = this.getTodayStartBRT();
+      where.date = { ...(where.date as Prisma.DateTimeFilter), gte: todayStart };
+    }
+
     const [data, total] = await Promise.all([
       this.prisma.event.findMany({
         where,
@@ -345,5 +359,63 @@ export class EventsService {
 
       return result;
     }
+  }
+
+
+  async archivePastEvents() {
+    const todayStart = this.getTodayStartBRT();
+    this.logger.log(`Archiving events before ${todayStart.toISOString()} (Star of Today in BRT)`);
+
+    const result = await this.prisma.event.updateMany({
+      where: {
+        isActive: true,
+        date: {
+          lt: todayStart,
+        },
+      },
+      data: {
+        isActive: false,
+        archivedAt: new Date(),
+      },
+    });
+
+    this.logger.log(`Archived ${result.count} past events.`);
+    return result;
+  }
+
+  private getTodayStartBRT(): Date {
+    // Current time
+    const now = new Date();
+
+    // Get date parts in BRT
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Sao_Paulo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+
+    // parts format is usually MM/DD/YYYY or similar depending on locale, but formatToParts is safer
+    const parts = formatter.formatToParts(now);
+    const year = parts.find(p => p.type === 'year')?.value;
+    const month = parts.find(p => p.type === 'month')?.value;
+    const day = parts.find(p => p.type === 'day')?.value;
+
+    if (!year || !month || !day) {
+      // Fallback to strict UTC if something fails, though unlikely
+      const d = new Date();
+      d.setUTCHours(0, 0, 0, 0);
+      return d;
+    }
+
+    // Create string YYYY-MM-DD
+    const dateStr = `${year}-${month}-${day}T00:00:00.000`; // Local wall time
+
+    // We need to convert this "Wall Time" 00:00 to the actual Date object representing that instant.
+    // Since we want 00:00 BRT, and BRT is -03:00.
+    // We can construct the ISO string with offset.
+    const isoWithOffset = `${year}-${month}-${day}T00:00:00.000-03:00`;
+
+    return new Date(isoWithOffset);
   }
 }
