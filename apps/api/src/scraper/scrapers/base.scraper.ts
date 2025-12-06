@@ -8,5 +8,8 @@ export abstract class BaseScraper {
    * Executes the scraping process for this platform.
    * @param browser Playwright Browser instance to use for creating contexts/pages
    */
-  abstract scrape(browser: Browser): Promise<StandardizedEvent[]>;
+  abstract scrape(
+    browser: Browser,
+    onEventFound?: (event: StandardizedEvent) => Promise<void>
+  ): Promise<StandardizedEvent[]>;
 }

@@ -52,21 +52,27 @@ export class ScraperService {
       ],
     });
 
+    const upsertEvent = async (event: any) => {
+      try {
+        await this.eventsService.upsertFromStandardized(event);
+      } catch (err) {
+        this.logger.error(
+          `Failed to upsert event ${event.title}: ${(err as Error).message}`,
+        );
+      }
+    };
+
     try {
-      const events = await scraper.scrape(browser);
+      const events = await scraper.scrape(browser, upsertEvent);
       this.logger.log(
-        `Scraped ${events.length} events from ${platformName}. Upserting...`,
+        `Scraped ${events.length} events from ${platformName}. (Real-time upsert enabled)`,
       );
 
-      for (const event of events) {
-        try {
-          await this.eventsService.upsertFromStandardized(event);
-        } catch (err) {
-          this.logger.error(
-            `Failed to upsert event ${event.title}: ${(err as Error).message}`,
-          );
-        }
-      }
+      // If the scraper implementation doesn't support callback (or returned events for legacy reasons),
+      // we could double-check, but assuming CorridasEMaratonasScraper will use the callback, we are good.
+      // To be safe against double-upserts (wasteful db calls), we can empty the list or just trust idempotency.
+      // Ideally, the scraper shouldn't return the list if it already pushed them, OR we just log summary.
+
       this.logger.log(`Finished processing ${platformName}`);
     } catch (error) {
       this.logger.error(`Failed to scrape platform ${platformName}`, error);

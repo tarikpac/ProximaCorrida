@@ -1,4 +1,4 @@
-import { Browser, Page } from 'playwright';
+import { Browser } from 'playwright';
 import { BaseScraper } from './base.scraper';
 import { StandardizedEvent } from '../interfaces/standardized-event.interface';
 import { Logger } from '@nestjs/common';
@@ -37,7 +37,10 @@ export class CorridasEMaratonasScraper extends BaseScraper {
   readonly name = 'corridasemaratonas';
   private readonly logger = new Logger(CorridasEMaratonasScraper.name);
 
-  async scrape(browser: Browser): Promise<StandardizedEvent[]> {
+  async scrape(
+    browser: Browser,
+    onEventFound?: (event: StandardizedEvent) => Promise<void>,
+  ): Promise<StandardizedEvent[]> {
     const results: StandardizedEvent[] = [];
     const context = await browser.newContext({
       userAgent:
@@ -100,7 +103,10 @@ export class CorridasEMaratonasScraper extends BaseScraper {
           if (!raw.detailsUrl) continue;
 
           try {
-            await detailsPage.goto(raw.detailsUrl, { timeout: 30000, waitUntil: 'domcontentloaded' });
+            await detailsPage.goto(raw.detailsUrl, {
+              timeout: 30000,
+              waitUntil: 'domcontentloaded',
+            });
 
             // Registration Link
             const regLink = await detailsPage.evaluate(() => {
@@ -198,7 +204,7 @@ export class CorridasEMaratonasScraper extends BaseScraper {
               if (!isNaN(parsed)) priceMin = parsed;
             }
 
-            results.push({
+            const evtParams: StandardizedEvent = {
               title: raw.title || 'Untitled',
               date: eventDate,
               city: raw.city || null,
@@ -212,11 +218,16 @@ export class CorridasEMaratonasScraper extends BaseScraper {
               priceText: priceText || null,
               priceMin,
               rawLocation: raw.city ? `${raw.city} - ${config.state}` : null,
-            });
+            };
+
+            results.push(evtParams);
+
+            if (onEventFound) {
+              await onEventFound(evtParams);
+            }
 
             // Small delay to be gentle on CPU and Server
-            await new Promise(r => setTimeout(r, 1000));
-
+            await new Promise((r) => setTimeout(r, 1000));
           } catch (err) {
             this.logger.error(
               `Failed to process event ${raw.title}: ${(err as Error).message}`,
