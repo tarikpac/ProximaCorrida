@@ -12,5 +12,5 @@ jobs:
     steps:
       - name: Trigger Scraper API
         run: |
-          curl -X POST https://proximacorrida.onrender.com/scraper/trigger \
+          curl -X POST https://proximacorrida.onrender.com/scraper/cron-trigger \
           -H "Content-Type: application/json"
