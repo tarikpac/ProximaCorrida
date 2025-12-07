@@ -14,16 +14,21 @@
 12. [x] **Scraper Refinement & Expansion** — Refactor scraper to support multiple states/origins (National Expansion), optimize performance for high volume, and standardize data models. `L`
 13. [x] **Cleanup Past Events** — Create a scheduled cron job (running daily) to identify and soft-delete/archive events that occurred in the past (e.g., date < yesterday) to keep the database optimized and search results relevant. `S`
 14. [x] **Scraper Enhancement: Photos & Prices** — Improve scraper to reliably capture event images and pricing information. Refine selectors and logic to handle various site structures. `S`
-15. [ ] **Multi-Provider Scraper Architecture** — Refatorar scraper para buscar eventos diretamente dos provedores (TicketSports, Zenite, Doity, Sympla, Ticket Agora, MinhaInscrição, etc.) em vez de usar agregadores como corridasemaratonas.com.br. Implementar scrapers modulares por plataforma, descoberta automática de eventos por região/estado, e consolidação de dados de múltiplas fontes. `XL`
-16. [ ] **Página de Calendário por Estado** — Implement `/calendario` (state selection) and `/calendario/[UF]` (monthly calendar view). Features: max 2 events/day cell, "+X events" indicator, day details modal, month/year navigation, and state switcher. `M`
-17. [ ] **Geographic Navigation & Routing** — Implement State Selector Header (horizontal scroll) and dynamic routes (`/br/[state]`) for SEO-friendly state filtering. `M`
-18. [ ] **"I'm Going" & Popularity System** — Add "Eu vou" button, track attendance counts, and implement logic to badge events as "Popular" or "High Attendance". `M`
-19. [ ] **Coupons & Discounts Page** — Develop a page to display discount coupons (manual entry or scraped), filterable by state, to provide extra value to runners. `S`
-20. [ ] **Deployment & Final Polish** — Configure production environment (Vercel/Railway/Supabase), fix mobile-specific connection issues (CORS/SSL), optimize assets, and perform final E2E testing on real devices. `M`
+15. [ ] **Scraper Performance Optimizations** — Reduce Playwright tab concurrency, reuse context/page, shorter timeouts. Filter before opening details, split scraping into smaller batches. Reduce verbose logging. `S`
+16. [ ] **Scraper as External Job (GitHub Actions)** — Extract scraper from Nest/HTTP to standalone Playwright script that writes directly to Supabase. Use GitHub Actions daily cron as default (zero cost). Configure workflow with secrets (DATABASE_URL, DIRECT_URL, REDIS_URL, VAPID). Trigger notifications inline or via dedicated endpoint. Fallback: Cloud Run Job + Cloud Scheduler if lower latency/controlled region needed. `M`
+17. [ ] **API Migration to Cloud Run** — Adjust API Dockerfile for PORT=8080, remove prisma migrate on-start. Deploy with min-instances=0, CPU throttled, high concurrency. Region close to Supabase to minimize egress. Align with external jobs (no continuous worker). `M`
+18. [ ] **Worker/Queue: Remove Continuous Worker** — Eliminate continuous worker from deploy. Scraper (GH Actions) writes to Supabase and triggers notifications inline or via API endpoint. Reconsider dedicated worker (Fly.io/Railway/Render free tier) only if notification volume/SLA grows significantly. `S`
+19. [ ] **Multi-Provider Scraper Architecture** — Refactor scraper to fetch events directly from providers (TicketSports, Zenite, Doity, Sympla, Ticket Agora, MinhaInscrição, etc.) instead of aggregators like corridasemaratonas.com.br. Implement modular per-platform scrapers, automatic event discovery by region/state, and multi-source data consolidation. `XL`
+20. [ ] **State Calendar Page** — Implement `/calendario` (state selection) and `/calendario/[UF]` (monthly calendar view). Features: max 2 events/day cell, "+X events" indicator, day details modal, month/year navigation, and state switcher. `M`
+21. [ ] **Geographic Navigation & Routing** — Implement State Selector Header (horizontal scroll) and dynamic routes (`/br/[state]`) for SEO-friendly state filtering. `M`
+22. [ ] **"I'm Going" & Popularity System** — Add "Eu vou" button, track attendance counts, and implement logic to badge events as "Popular" or "High Attendance". `M`
+23. [ ] **Coupons & Discounts Page** — Develop a page to display discount coupons (manual entry or scraped), filterable by state, to provide extra value to runners. `S`
+24. [ ] **Deployment & Final Polish** — Configure production environment (Vercel/Railway/Supabase), fix mobile-specific connection issues (CORS/SSL), optimize assets, and perform final E2E testing on real devices. `M`
 
 > Notes
 > - **Security First**: Integrity features are prioritized to ensure a stable foundation.
 > - **Engagement**: Social features (Sharing, "I'm Going") are low-hanging fruit to increase user retention before the complex Push system.
 > - **Push Complexity**: Split into Core (infra) and Pipeline (logic) to manage complexity.
 > - **Expansion**: The national expansion is a larger effort (`L`) placed later to ensure the platform features are solid first.
-> - **Multi-Provider Priority**: Item #15 priorizou a migração para múltiplos provedores diretos para garantir dados mais completos e atualizados.
+> - **Infra Sequence**: Items #15-18 must be executed in order to avoid breaking production. Performance optimizations first, then external job migration, then API migration, then worker removal.
+> - **Multi-Provider**: Item #19 is a major refactor that should only be done after infrastructure is stabilized (#15-18 complete).
