@@ -12,6 +12,30 @@ This document outlines the strategy to deploy the Proxima Corrida application us
 | **Queue/Cache** | Redis | **Upstash** | Free (10k req/day) |
 | **Scraper** | Playwright | **GitHub Actions** | Free (2000 min/mo) |
 
+## Environment Context
+
+It is crucial to understand the distinction between the environments we are working with:
+
+1.  **Local Environment (Development)**:
+    *   **Where**: Your local machine (`c:\proximacorrida`).
+    *   **Role**: Writing code, running unit tests (`npm run test`), debugging, and preparing features.
+    *   **Action**: Changes here must be committed (`git commit`) and pushed (`git push`) to effect changes elsewhere.
+
+2.  **GitHub (CI/CD)**:
+    *   **Where**: The `ProximaCorrida` repository.
+    *   **Role**:
+        *   Stores the source code.
+        *   **Orchestrator**: Runs **GitHub Actions** workflows (like `scraper.yml`).
+        *   **Trigger**: Updates here trigger deployments to Render.
+
+3.  **Production Environment**:
+    *   **Where**: `Render` (API) and `Vercel` (Web).
+    *   **Role**: The live application accessible to users (e.g., `proximacorrida.onrender.com`).
+    *   **State**: This environment reflects the code currently on the `main` branch of GitHub.
+
+**Current Workflow Status:**
+We are currently editing files in **Local Development**. To apply these fixes to **Production**, we must push them to **GitHub**.
+
 ---
 
 ## Detailed Strategy
@@ -27,7 +51,7 @@ This document outlines the strategy to deploy the Proxima Corrida application us
     *   Connect GitHub repository.
     *   Set Root Directory to `apps/web`.
     *   **Environment Variables:**
-        *   `NEXT_PUBLIC_API_URL`: URL of the Render API (e.g., `https://proxima-corrida-api.onrender.com`).
+        *   `NEXT_PUBLIC_API_URL`: URL of the Render API (e.g., `https://proximacorrida.onrender.com`).
 *   **Build Command:** `cd ../.. && npm install && npm run build` (Vercel handles monorepos well, but might need specific config).
 
 ### 3. Backend API (Render)

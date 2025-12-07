@@ -2,6 +2,16 @@ import { Browser, Page } from 'playwright';
 import { BaseScraper } from './base.scraper';
 import { StandardizedEvent } from '../interfaces/standardized-event.interface';
 import { Logger } from '@nestjs/common';
+import {
+  extractPriceWithHeuristics,
+  PriceResult,
+} from '../utils/price-extraction.utils';
+import {
+  detectPlatform,
+  getPlatformWaitConfig,
+  getPlatformDelay,
+  Platform,
+} from '../utils/image-extraction.utils';
 
 const STATE_URLS = [
   { state: 'AC', url: 'https://corridasemaratonas.com.br/corridas-no-acre/' },
@@ -118,6 +128,7 @@ export class CorridasEMaratonasScraper extends BaseScraper {
           // Variables to accept either scraped data or fallback
           let regLink: string | null = null;
           let priceText: string | null = null;
+          let priceMin: number | null = null;
           let imageUrl: string | null = null;
           let finalSourceUrl = raw.detailsUrl;
 
@@ -143,16 +154,34 @@ export class CorridasEMaratonasScraper extends BaseScraper {
                 waitUntil: 'domcontentloaded',
               });
 
-              regLink = await this.detectRegistrationLink(detailsPage);
-              priceText = await this.extractPrice(detailsPage);
+              // Detect registration link and platform
+              const regLinkInfo = await this.detectRegistrationLink(detailsPage);
+              regLink = regLinkInfo.url;
 
-              // Preparation for Task 19: Reliable Photos & Prices
-              // We isolate image extraction as it may involve complex navigation or heuristics
-              const imgResult = await this.extractImage(detailsPage, regLink);
-              imageUrl = imgResult.imageUrl;
-              // Sometimes price is only available on the registration page
-              if (imgResult.priceFound) {
-                priceText = imgResult.priceFound;
+              // First try to get price from the details page
+              const detailsPagePrice =
+                await this.extractPriceWithClassification(detailsPage);
+              priceText = detailsPagePrice.priceText;
+              priceMin = detailsPagePrice.priceMin;
+
+              // Try to get image from details page first
+              imageUrl = await this.extractImageWithFallback(detailsPage);
+
+              // If we have a registration link, navigate there for better data
+              if (regLinkInfo.url) {
+                const regResult = await this.extractImageAndPrice(
+                  detailsPage,
+                  regLinkInfo,
+                );
+
+                // Use registration page data if available (usually better)
+                if (regResult.imageUrl) {
+                  imageUrl = regResult.imageUrl;
+                }
+                if (regResult.priceResult?.priceText) {
+                  priceText = regResult.priceResult.priceText;
+                  priceMin = regResult.priceResult.priceMin;
+                }
               }
             } else {
               // Fallback Logic for #N/A or invalid URLs
@@ -181,18 +210,6 @@ export class CorridasEMaratonasScraper extends BaseScraper {
             const distances = raw.distancesStr
               ? raw.distancesStr.split('/').map((d) => d.trim())
               : [];
-
-            // Price Min Parsing
-            let priceMin: number | null = null;
-            if (priceText && priceText !== 'Sob Consulta') {
-              const numericString = priceText
-                .replace('R$', '')
-                .replace('.', '')
-                .replace(',', '.')
-                .trim();
-              const parsed = parseFloat(numericString);
-              if (!isNaN(parsed)) priceMin = parsed;
-            }
 
             const evtParams: StandardizedEvent = {
               title: raw.title || 'Untitled',
@@ -241,15 +258,17 @@ export class CorridasEMaratonasScraper extends BaseScraper {
     return results;
   }
 
-  // --- Helper Methods (Prep for Task 19) ---
+  // --- Helper Methods (Enhanced for Photos & Prices) ---
 
   /**
-   * Task 19: Detects the registration link on the current page.
+   * Detects the registration link and platform on the current page.
    * @param page The Playwright Page object.
-   * @returns The registration URL or null if not found.
+   * @returns Object with registration URL and detected platform.
    */
-  private async detectRegistrationLink(page: Page): Promise<string | null> {
-    return page.evaluate(() => {
+  private async detectRegistrationLink(
+    page: Page,
+  ): Promise<{ url: string | null; platform: Platform }> {
+    const url = await page.evaluate(() => {
       const links = Array.from(document.querySelectorAll('a'));
       const found = links.find(
         (a) =>
@@ -261,70 +280,210 @@ export class CorridasEMaratonasScraper extends BaseScraper {
       );
       return found ? found.href : null;
     });
+
+    return {
+      url,
+      platform: detectPlatform(url),
+    };
   }
 
   /**
-   * Task 19: Extracts price information from the current page's body text.
+   * Extracts price information using intelligent heuristics.
+   * Classifies prices as 'general' vs 'discounted' (PCD/meia/kids).
+   * Only returns general public prices for the event card.
+   * 
    * @param page The Playwright Page object.
-   * @returns The extracted price string (e.g., "R$ 123,45") or null if not found.
+   * @returns PriceResult with priceMin and priceText.
    */
-  private async extractPrice(page: Page): Promise<string | null> {
+  private async extractPriceWithClassification(page: Page): Promise<PriceResult> {
+    const bodyText = await page.evaluate(() => document.body.innerText);
+    return extractPriceWithHeuristics(bodyText);
+  }
+
+  /**
+   * Extracts image URL using a fallback chain:
+   * 1. og:image meta tag
+   * 2. twitter:image meta tag
+   * 3. Banner/poster images (by class/keyword)
+   * 4. Largest image on page
+   * 5. CSS background-image
+   * 
+   * @param page The Playwright Page object.
+   * @returns The image URL or null.
+   */
+  private async extractImageWithFallback(page: Page): Promise<string | null> {
     return page.evaluate(() => {
-      const bodyText = document.body.innerText;
-      const priceMatch = bodyText.match(/R\$\s?(\d{2,3}[.,]\d{2})/i);
-      return priceMatch ? `R$ ${priceMatch[1]}` : null;
+      // 1. Try og:image meta tag
+      const ogImage = document.querySelector('meta[property="og:image"]');
+      if (ogImage) {
+        const content = (ogImage as HTMLMetaElement).content;
+        if (content && content.startsWith('http')) {
+          return content;
+        }
+      }
+
+      // 2. Try twitter:image meta tag
+      const twitterImage =
+        document.querySelector('meta[name="twitter:image"]') ||
+        document.querySelector('meta[property="twitter:image"]');
+      if (twitterImage) {
+        const content = (twitterImage as HTMLMetaElement).content;
+        if (content && content.startsWith('http')) {
+          return content;
+        }
+      }
+
+      // 3. Try banner/poster images by class or keywords
+      const bannerClasses = [
+        'img.img-capa-evento',
+        'img.banner',
+        'img.poster',
+        'img.capa',
+        'img.hero-image',
+        'img.event-image',
+        '.banner img',
+        '.hero img',
+        '.capa img',
+      ];
+
+      for (const selector of bannerClasses) {
+        const bannerImg = document.querySelector(selector);
+        if (bannerImg) {
+          const src = (bannerImg as HTMLImageElement).src;
+          if (src && src.startsWith('http')) {
+            return src;
+          }
+        }
+      }
+
+      // 4. Find banner by keyword in src/alt
+      const images = Array.from(document.querySelectorAll('img'));
+      const keywordBanner = images.find((img) => {
+        const searchText = (img.src + ' ' + (img.alt || '')).toLowerCase();
+        return (
+          searchText.includes('banner') ||
+          searchText.includes('cartaz') ||
+          searchText.includes('poster') ||
+          searchText.includes('capa')
+        );
+      });
+      if (keywordBanner && keywordBanner.src.startsWith('http')) {
+        return keywordBanner.src;
+      }
+
+      // 5. Find largest image (width > 300)
+      const largeImages = images
+        .filter((img) => {
+          const width = img.naturalWidth || img.width || 0;
+          return width > 300 && img.src.startsWith('http');
+        })
+        .sort((a, b) => {
+          const widthA = a.naturalWidth || a.width || 0;
+          const widthB = b.naturalWidth || b.width || 0;
+          return widthB - widthA;
+        });
+
+      if (largeImages.length > 0) {
+        return largeImages[0].src;
+      }
+
+      // 6. Try CSS background-image on hero/banner sections
+      const heroSelectors = ['.hero', '.banner', '.capa', '.header', 'header'];
+      for (const selector of heroSelectors) {
+        const element = document.querySelector(selector);
+        if (element) {
+          const bgImage = window.getComputedStyle(element).backgroundImage;
+          if (bgImage && bgImage !== 'none') {
+            const match = bgImage.match(/url\(['"]?([^'"()]+)['"]?\)/i);
+            if (match && match[1] && match[1].startsWith('http')) {
+              return match[1];
+            }
+          }
+        }
+      }
+
+      return null;
     });
   }
 
   /**
-   * Task 19: Attempts to extract an image URL.
-   * May navigate the page to the registration link to find better images/prices.
+   * Applies platform-specific wait strategies before extraction.
+   * TicketSports: wait for price selectors
+   * Doity: extra delay for dynamic content
+   * 
    * @param page The Playwright Page object.
-   * @param regLink An optional registration link to navigate to for more data.
-   * @returns An object containing the found image URL and potentially a price found on the registration page.
+   * @param platform The detected platform.
    */
-  private async extractImage(
-    page: Page,
-    regLink: string | null,
-  ): Promise<{ imageUrl: string | null; priceFound?: string | null }> {
-    let imageUrl: string | null = null;
-    let priceFound: string | null = null;
+  private async applyPlatformWait(page: Page, platform: Platform): Promise<void> {
+    const waitConfig = getPlatformWaitConfig(platform);
+    const delay = getPlatformDelay(platform);
 
-    if (regLink) {
+    if (waitConfig) {
       try {
-        // Navigate the SAME page to the registration link
-        await page.goto(regLink, {
+        await page.waitForSelector(waitConfig.selector, {
+          timeout: waitConfig.timeout,
+        });
+        this.logger.debug(
+          `Platform ${platform}: waited for selector "${waitConfig.selector}"`,
+        );
+      } catch {
+        this.logger.debug(
+          `Platform ${platform}: selector wait timed out, continuing`,
+        );
+      }
+    }
+
+    if (delay > 0) {
+      await new Promise((r) => setTimeout(r, delay));
+      this.logger.debug(`Platform ${platform}: applied ${delay}ms delay`);
+    }
+  }
+
+  /**
+   * Main extraction method that navigates to regLink and extracts both
+   * image and price with enhanced heuristics.
+   * 
+   * @param page The Playwright Page object.
+   * @param regLinkInfo Registration link info with URL and platform.
+   * @returns Object with imageUrl and priceResult.
+   */
+  private async extractImageAndPrice(
+    page: Page,
+    regLinkInfo: { url: string | null; platform: Platform },
+  ): Promise<{ imageUrl: string | null; priceResult: PriceResult | null }> {
+    let imageUrl: string | null = null;
+    let priceResult: PriceResult | null = null;
+
+    if (regLinkInfo.url) {
+      try {
+        // Navigate to registration page
+        await page.goto(regLinkInfo.url, {
           timeout: 45000,
           waitUntil: 'domcontentloaded',
         });
 
-        // Try to find price again if we are here (Task 19)
-        priceFound = await this.extractPrice(page);
+        // Apply platform-specific waits
+        await this.applyPlatformWait(page, regLinkInfo.platform);
 
-        imageUrl = await page.evaluate(() => {
-          const ogImage = document.querySelector('meta[property="og:image"]');
-          if (ogImage && (ogImage as HTMLMetaElement).content)
-            return (ogImage as HTMLMetaElement).content;
+        // Extract price with classification heuristics
+        priceResult = await this.extractPriceWithClassification(page);
+        this.logger.debug(
+          `Extracted price from ${regLinkInfo.platform}: ${priceResult.priceText}`,
+        );
 
-          const race83Img = document.querySelector('img.img-capa-evento');
-          if (race83Img) return (race83Img as HTMLImageElement).src;
-
-          const images = Array.from(document.querySelectorAll('img'));
-          const bannerCandidate = images.find((img) => {
-            const isLarge = img.naturalWidth > 600;
-            const hasBannerKeyword =
-              (img.src + img.alt).toLowerCase().includes('banner') ||
-              (img.src + img.alt).toLowerCase().includes('cartaz');
-            return isLarge || hasBannerKeyword;
-          });
-          return bannerCandidate ? bannerCandidate.src : null;
-        });
+        // Extract image with fallback chain
+        imageUrl = await this.extractImageWithFallback(page);
+        this.logger.debug(
+          `Extracted image from ${regLinkInfo.platform}: ${imageUrl ? 'found' : 'not found'}`,
+        );
       } catch (e) {
         this.logger.warn(
           `Failed to load registration page for image/price: ${(e as Error).message}`,
         );
       }
     }
-    return { imageUrl, priceFound };
+
+    return { imageUrl, priceResult };
   }
 }
+

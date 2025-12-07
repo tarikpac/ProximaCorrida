@@ -88,3 +88,7 @@ coverage
 
 # Agent OS
 .gemini/
+
+# Local Dev
+docker-compose.dev.yml
+

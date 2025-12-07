@@ -34,9 +34,15 @@ describe('Scraper Orchestration', () => {
 
   it('should enqueue all platforms', async () => {
     await service.enqueueAllPlatforms();
-    expect(mockQueue.add).toHaveBeenCalledWith('scrape-platform', {
-      platform: 'corridasemaratonas',
-    });
+    // Since CorridasEMaratonasScraper uses splits, it enqueues with filter
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      'scrape-platform',
+      expect.objectContaining({
+        platform: 'corridasemaratonas',
+        filter: expect.any(String),
+      }),
+      expect.any(Object),
+    );
   });
 
   it('should run specific platform', async () => {
@@ -82,6 +88,6 @@ describe('Scraper Orchestration', () => {
 
     await processor.process(job);
 
-    expect(runPlatformSpy).toHaveBeenCalledWith('corridasemaratonas');
+    expect(runPlatformSpy).toHaveBeenCalledWith('corridasemaratonas', undefined);
   });
 });
