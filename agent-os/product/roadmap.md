@@ -14,14 +14,16 @@
 12. [x] **Scraper Refinement & Expansion** — Refactor scraper to support multiple states/origins (National Expansion), optimize performance for high volume, and standardize data models. `L`
 13. [x] **Cleanup Past Events** — Create a scheduled cron job (running daily) to identify and soft-delete/archive events that occurred in the past (e.g., date < yesterday) to keep the database optimized and search results relevant. `S`
 14. [x] **Scraper Enhancement: Photos & Prices** — Improve scraper to reliably capture event images and pricing information. Refine selectors and logic to handle various site structures. `S`
-15. [ ] **Página de Calendário por Estado** — Implement `/calendario` (state selection) and `/calendario/[UF]` (monthly calendar view). Features: max 2 events/day cell, "+X events" indicator, day details modal, month/year navigation, and state switcher. `M`
-16. [ ] **Geographic Navigation & Routing** — Implement State Selector Header (horizontal scroll) and dynamic routes (`/br/[state]`) for SEO-friendly state filtering. `M`
-17. [ ] **"I'm Going" & Popularity System** — Add "Eu vou" button, track attendance counts, and implement logic to badge events as "Popular" or "High Attendance". `M`
-18. [ ] **Coupons & Discounts Page** — Develop a page to display discount coupons (manual entry or scraped), filterable by state, to provide extra value to runners. `S`
-19. [ ] **Deployment & Final Polish** — Configure production environment (Vercel/Railway/Supabase), fix mobile-specific connection issues (CORS/SSL), optimize assets, and perform final E2E testing on real devices. `M`
+15. [ ] **Multi-Provider Scraper Architecture** — Refatorar scraper para buscar eventos diretamente dos provedores (TicketSports, Zenite, Doity, Sympla, Ticket Agora, MinhaInscrição, etc.) em vez de usar agregadores como corridasemaratonas.com.br. Implementar scrapers modulares por plataforma, descoberta automática de eventos por região/estado, e consolidação de dados de múltiplas fontes. `XL`
+16. [ ] **Página de Calendário por Estado** — Implement `/calendario` (state selection) and `/calendario/[UF]` (monthly calendar view). Features: max 2 events/day cell, "+X events" indicator, day details modal, month/year navigation, and state switcher. `M`
+17. [ ] **Geographic Navigation & Routing** — Implement State Selector Header (horizontal scroll) and dynamic routes (`/br/[state]`) for SEO-friendly state filtering. `M`
+18. [ ] **"I'm Going" & Popularity System** — Add "Eu vou" button, track attendance counts, and implement logic to badge events as "Popular" or "High Attendance". `M`
+19. [ ] **Coupons & Discounts Page** — Develop a page to display discount coupons (manual entry or scraped), filterable by state, to provide extra value to runners. `S`
+20. [ ] **Deployment & Final Polish** — Configure production environment (Vercel/Railway/Supabase), fix mobile-specific connection issues (CORS/SSL), optimize assets, and perform final E2E testing on real devices. `M`
 
 > Notes
 > - **Security First**: Integrity features are prioritized to ensure a stable foundation.
 > - **Engagement**: Social features (Sharing, "I'm Going") are low-hanging fruit to increase user retention before the complex Push system.
 > - **Push Complexity**: Split into Core (infra) and Pipeline (logic) to manage complexity.
 > - **Expansion**: The national expansion is a larger effort (`L`) placed later to ensure the platform features are solid first.
+> - **Multi-Provider Priority**: Item #15 priorizou a migração para múltiplos provedores diretos para garantir dados mais completos e atualizados.
