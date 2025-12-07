@@ -1,0 +1,44 @@
+// Prisma schema for standalone scraper
+// Mirrors the main API schema for Event model
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  title       String
+  date        DateTime
+  city        String
+  state       String   @default("PB")
+  distances   String[]
+  location    String?
+  organizer   String?
+  imageUrl    String?
+  price       String?
+  regLink     String
+  sourceUrl   String   @unique
+
+  // Scraper Expansion Fields
+  sourcePlatform String   @default("corridasemaratonas")
+  sourceEventId  String?
+  rawLocation    String?
+  priceText      String?
+  priceMin       Decimal?
+
+  scrapedAt   DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sourcePlatform, sourceEventId])
+
+  // Soft Deletion / Archiving
+  isActive    Boolean  @default(true)
+  archivedAt  DateTime?
+}

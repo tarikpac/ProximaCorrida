@@ -12,9 +12,15 @@ import {
   GetPreferencesDto,
 } from './dto/create-subscription.dto';
 
+export class TriggerNotificationDto {
+  eventId: string;
+  eventTitle: string;
+  eventState: string;
+}
+
 @Controller('notifications')
 export class NotificationsController {
-  constructor(private readonly notificationsService: NotificationsService) {}
+  constructor(private readonly notificationsService: NotificationsService) { }
 
   @Post('subscribe')
   async subscribe(@Body() createSubscriptionDto: CreateSubscriptionDto) {
@@ -35,5 +41,21 @@ export class NotificationsController {
       throw new BadRequestException('Endpoint is required');
     }
     return this.notificationsService.sendTestNotification(body.endpoint);
+  }
+
+  /**
+   * Trigger push notification for a new event
+   * Called by the standalone scraper when a new event is created
+   */
+  @Post('trigger')
+  async triggerNotification(@Body() body: TriggerNotificationDto) {
+    if (!body.eventId || !body.eventTitle || !body.eventState) {
+      throw new BadRequestException('eventId, eventTitle, and eventState are required');
+    }
+    return this.notificationsService.triggerEventNotification(
+      body.eventId,
+      body.eventTitle,
+      body.eventState,
+    );
   }
 }

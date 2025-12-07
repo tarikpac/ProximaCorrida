@@ -97,4 +97,68 @@ export class NotificationsService {
 
     return this.sendNotification(pushSubscription, payload);
   }
+
+  /**
+   * Trigger push notifications for a new event
+   * Sends to all subscribers interested in the event's state
+   */
+  async triggerEventNotification(
+    eventId: string,
+    eventTitle: string,
+    eventState: string,
+  ) {
+    this.logger.log(
+      `Triggering notification for event: ${eventTitle} (${eventState})`,
+    );
+
+    // Find all subscriptions interested in this state
+    const subscriptions = await this.prisma.pushSubscription.findMany({
+      where: {
+        OR: [
+          { statePreferences: { has: eventState } },
+          { statePreferences: { isEmpty: true } }, // Empty means all states
+        ],
+      },
+    });
+
+    if (subscriptions.length === 0) {
+      this.logger.log(`No subscribers interested in state: ${eventState}`);
+      return { sent: 0, failed: 0, eventId };
+    }
+
+    this.logger.log(
+      `Found ${subscriptions.length} subscribers for state: ${eventState}`,
+    );
+
+    const payload = {
+      title: `Nova corrida em ${eventState}! 🏃`,
+      body: eventTitle,
+      url: `https://proximacorrida.com.br/events/${eventId}`,
+      data: { eventId, eventState },
+    };
+
+    let sent = 0;
+    let failed = 0;
+
+    for (const subscription of subscriptions) {
+      try {
+        const pushSubscription = {
+          endpoint: subscription.endpoint,
+          keys: subscription.keys as any,
+        };
+        await this.sendNotification(pushSubscription, payload);
+        sent++;
+      } catch (error) {
+        failed++;
+        // Error already logged in sendNotification
+      }
+    }
+
+    this.logger.log(
+      `Notification result for ${eventTitle}: sent=${sent}, failed=${failed}`,
+    );
+
+    return { sent, failed, eventId };
+  }
 }
+

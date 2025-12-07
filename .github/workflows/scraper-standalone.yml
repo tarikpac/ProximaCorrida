@@ -1,0 +1,77 @@
+# GitHub Actions Workflow: ProximaCorrida Standalone Scraper
+# Runs daily at 06:00 UTC (03:00 BRT) to scrape events from corridasemaratonas.com.br
+# This is the NEW standalone version that doesn't require the API to be running
+#
+# Required Secrets:
+# - DATABASE_URL: Supabase PostgreSQL connection string (with pooler)
+# - DIRECT_URL: Direct PostgreSQL connection string (without pooler)
+# - API_BASE_URL: Base URL for the API (for notification triggers)
+
+name: Standalone Scraper
+
+on:
+  # Daily execution at 06:00 UTC (03:00 BRT)
+  schedule:
+    - cron: '0 6 * * *'
+  
+  # Manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      state:
+        description: 'Optional: Single state to scrape (e.g., PB, SP)'
+        required: false
+        default: ''
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120  # 2 hours max for all 27 states
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: scripts/scraper/package-lock.json
+
+      - name: Install dependencies
+        working-directory: scripts/scraper
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: scripts/scraper
+        run: npx prisma generate
+
+      - name: Install Playwright
+        working-directory: scripts/scraper
+        run: npx playwright install chromium --with-deps
+
+      - name: Run Scraper
+        working-directory: scripts/scraper
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          DETAIL_TIMEOUT_MS: '15000'
+          REG_TIMEOUT_MS: '20000'
+          SCRAPER_EVENT_DELAY_MS: '500'
+          SCRAPER_STALENESS_DAYS: '7'
+          LOG_LEVEL: 'info'
+        run: |
+          if [ -n "${{ github.event.inputs.state }}" ]; then
+            npx ts-node src/main.ts --state=${{ github.event.inputs.state }}
+          else
+            npx ts-node src/main.ts
+          fi
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scraper-logs
+          path: scripts/scraper/logs/
+          retention-days: 7
