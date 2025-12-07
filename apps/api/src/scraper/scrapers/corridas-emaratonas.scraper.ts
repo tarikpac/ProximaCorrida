@@ -1,4 +1,4 @@
-import { Browser } from 'playwright';
+import { Browser, Page } from 'playwright';
 import { BaseScraper } from './base.scraper';
 import { StandardizedEvent } from '../interfaces/standardized-event.interface';
 import { Logger } from '@nestjs/common';
@@ -115,85 +115,60 @@ export class CorridasEMaratonasScraper extends BaseScraper {
         const detailsPage = await context.newPage();
 
         for (const raw of rawEvents) {
-          if (!raw.detailsUrl) continue;
+          // Variables to accept either scraped data or fallback
+          let regLink: string | null = null;
+          let priceText: string | null = null;
+          let imageUrl: string | null = null;
+          let finalSourceUrl = raw.detailsUrl;
+
+          // Helper for slugification
+          const slugify = (text: string) =>
+            text
+              .toLowerCase()
+              .normalize('NFD') // Decompose combined chars (e.g. 'é' -> 'e' + '´')
+              .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+              .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanum with -
+              .replace(/^-+|-+$/g, ''); // Trim -
 
           try {
-            await detailsPage.goto(raw.detailsUrl, {
-              timeout: 30000,
-              waitUntil: 'domcontentloaded',
-            });
+            // Check if URL is valid (Fix for Task: Scraper dropping events with #N/A)
+            const isValidUrl =
+              raw.detailsUrl &&
+              !raw.detailsUrl.includes('#N/A') &&
+              raw.detailsUrl.startsWith('http');
 
-            // Registration Link
-            const regLink = await detailsPage.evaluate(() => {
-              const links = Array.from(document.querySelectorAll('a'));
-              const found = links.find(
-                (a) =>
-                  a.textContent?.toLowerCase().includes('inscrição') ||
-                  a.textContent?.toLowerCase().includes('inscreva-se') ||
-                  a.href.includes('zeniteesportes') ||
-                  a.href.includes('ticketsports') ||
-                  a.href.includes('doity'),
-              );
-              return found ? found.href : null;
-            });
+            if (isValidUrl) {
+              await detailsPage.goto(raw.detailsUrl, {
+                timeout: 30000,
+                waitUntil: 'domcontentloaded',
+              });
 
-            // Price Extraction
-            let priceText = await detailsPage.evaluate(() => {
-              const bodyText = document.body.innerText;
-              const priceMatch = bodyText.match(/R\$\s?(\d{2,3}[.,]\d{2})/i);
-              return priceMatch ? `R$ ${priceMatch[1]}` : null;
-            });
+              regLink = await this.detectRegistrationLink(detailsPage);
+              priceText = await this.extractPrice(detailsPage);
 
-            // Image Extraction
-            let imageUrl: string | null = null;
-            if (regLink) {
-              try {
-                // Navigate the SAME page to the registration link
-                // This saves memory by not opening a second tab/page
-                await detailsPage.goto(regLink, {
-                  timeout: 45000,
-                  waitUntil: 'domcontentloaded',
-                });
-
-                if (!priceText) {
-                  priceText = await detailsPage.evaluate(() => {
-                    const bodyText = document.body.innerText;
-                    const priceMatch = bodyText.match(
-                      /R\$\s?(\d{2,3}[.,]\d{2})/i,
-                    );
-                    return priceMatch ? `R$ ${priceMatch[1]}` : null;
-                  });
-                }
-
-                imageUrl = await detailsPage.evaluate(() => {
-                  const ogImage = document.querySelector(
-                    'meta[property="og:image"]',
-                  );
-                  if (ogImage && (ogImage as HTMLMetaElement).content)
-                    return (ogImage as HTMLMetaElement).content;
-
-                  const race83Img = document.querySelector(
-                    'img.img-capa-evento',
-                  );
-                  if (race83Img) return (race83Img as HTMLImageElement).src;
-
-                  const images = Array.from(document.querySelectorAll('img'));
-                  const bannerCandidate = images.find((img) => {
-                    const isLarge = img.naturalWidth > 600;
-                    const hasBannerKeyword =
-                      (img.src + img.alt).toLowerCase().includes('banner') ||
-                      (img.src + img.alt).toLowerCase().includes('cartaz');
-                    return isLarge || hasBannerKeyword;
-                  });
-                  return bannerCandidate ? bannerCandidate.src : null;
-                });
-
-                // Go back or just stay, the next loop will overwrite the page URL
-              } catch (e) {
-                this.logger.warn(
-                  `Failed to load registration page for image/price: ${(e as Error).message}`,
-                );
+              // Preparation for Task 19: Reliable Photos & Prices
+              // We isolate image extraction as it may involve complex navigation or heuristics
+              const imgResult = await this.extractImage(detailsPage, regLink);
+              imageUrl = imgResult.imageUrl;
+              // Sometimes price is only available on the registration page
+              if (imgResult.priceFound) {
+                priceText = imgResult.priceFound;
               }
+            } else {
+              // Fallback Logic for #N/A or invalid URLs
+              // Instead of discarding the event, we register it with basic info
+              this.logger.warn(
+                `Invalid details URL for ${raw.title} (${raw.detailsUrl}). Generating fallback ID.`,
+              );
+              const slugTitle = slugify(raw.title || 'untitled');
+              const slugCity = slugify(raw.city || 'unknown');
+              const safeDate = raw.dateStr?.replace(/\//g, '') || 'nodate';
+
+              // Generate a deterministic fake URL to serve as ID
+              finalSourceUrl = `https://corridasemaratonas.com.br/fallback/${config.state}/${safeDate}-${slugTitle}-${slugCity}`;
+
+              // Mark visually as unavailable/pending info
+              priceText = 'Sob Consulta';
             }
 
             // Normalization
@@ -209,7 +184,7 @@ export class CorridasEMaratonasScraper extends BaseScraper {
 
             // Price Min Parsing
             let priceMin: number | null = null;
-            if (priceText) {
+            if (priceText && priceText !== 'Sob Consulta') {
               const numericString = priceText
                 .replace('R$', '')
                 .replace('.', '')
@@ -226,7 +201,7 @@ export class CorridasEMaratonasScraper extends BaseScraper {
               state: config.state,
               distances,
               regUrl: regLink || null,
-              sourceUrl: raw.detailsUrl,
+              sourceUrl: finalSourceUrl,
               sourcePlatform: this.name,
               sourceEventId: null,
               imageUrl: imageUrl || null,
@@ -242,7 +217,12 @@ export class CorridasEMaratonasScraper extends BaseScraper {
             }
 
             // Small delay to be gentle on CPU and Server
-            await new Promise((r) => setTimeout(r, 1000));
+            if (isValidUrl) {
+              await new Promise((r) => setTimeout(r, 1000));
+            } else {
+              // Minimal delay for fallback loops
+              await new Promise((r) => setTimeout(r, 100));
+            }
           } catch (err) {
             this.logger.error(
               `Failed to process event ${raw.title}: ${(err as Error).message}`,
@@ -259,5 +239,92 @@ export class CorridasEMaratonasScraper extends BaseScraper {
 
     await context.close();
     return results;
+  }
+
+  // --- Helper Methods (Prep for Task 19) ---
+
+  /**
+   * Task 19: Detects the registration link on the current page.
+   * @param page The Playwright Page object.
+   * @returns The registration URL or null if not found.
+   */
+  private async detectRegistrationLink(page: Page): Promise<string | null> {
+    return page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll('a'));
+      const found = links.find(
+        (a) =>
+          a.textContent?.toLowerCase().includes('inscrição') ||
+          a.textContent?.toLowerCase().includes('inscreva-se') ||
+          a.href.includes('zeniteesportes') ||
+          a.href.includes('ticketsports') ||
+          a.href.includes('doity'),
+      );
+      return found ? found.href : null;
+    });
+  }
+
+  /**
+   * Task 19: Extracts price information from the current page's body text.
+   * @param page The Playwright Page object.
+   * @returns The extracted price string (e.g., "R$ 123,45") or null if not found.
+   */
+  private async extractPrice(page: Page): Promise<string | null> {
+    return page.evaluate(() => {
+      const bodyText = document.body.innerText;
+      const priceMatch = bodyText.match(/R\$\s?(\d{2,3}[.,]\d{2})/i);
+      return priceMatch ? `R$ ${priceMatch[1]}` : null;
+    });
+  }
+
+  /**
+   * Task 19: Attempts to extract an image URL.
+   * May navigate the page to the registration link to find better images/prices.
+   * @param page The Playwright Page object.
+   * @param regLink An optional registration link to navigate to for more data.
+   * @returns An object containing the found image URL and potentially a price found on the registration page.
+   */
+  private async extractImage(
+    page: Page,
+    regLink: string | null,
+  ): Promise<{ imageUrl: string | null; priceFound?: string | null }> {
+    let imageUrl: string | null = null;
+    let priceFound: string | null = null;
+
+    if (regLink) {
+      try {
+        // Navigate the SAME page to the registration link
+        await page.goto(regLink, {
+          timeout: 45000,
+          waitUntil: 'domcontentloaded',
+        });
+
+        // Try to find price again if we are here (Task 19)
+        priceFound = await this.extractPrice(page);
+
+        imageUrl = await page.evaluate(() => {
+          const ogImage = document.querySelector('meta[property="og:image"]');
+          if (ogImage && (ogImage as HTMLMetaElement).content)
+            return (ogImage as HTMLMetaElement).content;
+
+          const race83Img = document.querySelector('img.img-capa-evento');
+          if (race83Img) return (race83Img as HTMLImageElement).src;
+
+          const images = Array.from(document.querySelectorAll('img'));
+          const bannerCandidate = images.find((img) => {
+            const isLarge = img.naturalWidth > 600;
+            const hasBannerKeyword =
+              (img.src + img.alt).toLowerCase().includes('banner') ||
+              (img.src + img.alt).toLowerCase().includes('cartaz');
+            return isLarge || hasBannerKeyword;
+          });
+          return bannerCandidate ? bannerCandidate.src : null;
+        });
+      } catch (e) {
+        this.logger.warn(
+          `Failed to load registration page for image/price: ${(e as Error).message}`,
+        );
+      }
+    }
+    return { imageUrl, priceFound };
   }
 }

@@ -1,22 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EventsService } from './events.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { getQueueToken } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
 describe('EventsService Enqueueing', () => {
   let service: EventsService;
-  let supabaseService: SupabaseService;
   let notificationsQueue: Queue;
-
-  const mockSupabaseClient = {
-    from: jest.fn().mockReturnThis(),
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    single: jest.fn(),
-    update: jest.fn().mockReturnThis(),
-    insert: jest.fn().mockReturnThis(),
-  };
+  let prisma: PrismaService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -24,9 +16,7 @@ describe('EventsService Enqueueing', () => {
         EventsService,
         {
           provide: SupabaseService,
-          useValue: {
-            getClient: jest.fn().mockReturnValue(mockSupabaseClient),
-          },
+          useValue: { getClient: jest.fn() },
         },
         {
           provide: 'BullQueue_notifications',
@@ -34,12 +24,22 @@ describe('EventsService Enqueueing', () => {
             add: jest.fn(),
           },
         },
+        {
+          provide: PrismaService,
+          useValue: {
+            event: {
+              findUnique: jest.fn(),
+              update: jest.fn(),
+              create: jest.fn(),
+            },
+          },
+        },
       ],
     }).compile();
 
     service = module.get<EventsService>(EventsService);
-    supabaseService = module.get<SupabaseService>(SupabaseService);
     notificationsQueue = module.get<Queue>(getQueueToken('notifications'));
+    prisma = module.get<PrismaService>(PrismaService);
   });
 
   it('should be defined', () => {
@@ -57,16 +57,20 @@ describe('EventsService Enqueueing', () => {
         regLink: 'http://example.com/reg',
       };
 
-      // Mock existing check: returns null (not found)
-      mockSupabaseClient.single.mockResolvedValueOnce({ data: null });
+      // Mock findUnique: returns null (not found)
+      (prisma.event.findUnique as jest.Mock).mockResolvedValue(null);
 
-      // Mock insert: returns new event
-      mockSupabaseClient.single.mockResolvedValueOnce({
-        data: { ...eventData, id: 'new-id' },
+      // Mock create: returns new event
+      (prisma.event.create as jest.Mock).mockResolvedValue({
+        ...eventData,
+        id: 'new-id',
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       await service.upsertBySourceUrl(eventData as any);
 
+      expect(prisma.event.create).toHaveBeenCalled();
       expect(notificationsQueue.add).toHaveBeenCalledWith(
         'send-push-notification',
         expect.objectContaining({
@@ -88,18 +92,24 @@ describe('EventsService Enqueueing', () => {
         regLink: 'http://example.com/reg',
       };
 
-      // Mock existing check: returns existing id
-      mockSupabaseClient.single.mockResolvedValueOnce({
-        data: { id: 'existing-id' },
+      // Mock findUnique: returns existing event
+      (prisma.event.findUnique as jest.Mock).mockResolvedValue({
+        id: 'existing-id',
+        sourceUrl: 'http://example.com/existing',
       });
 
       // Mock update: returns updated event
-      mockSupabaseClient.single.mockResolvedValueOnce({
-        data: { ...eventData, id: 'existing-id' },
+      (prisma.event.update as jest.Mock).mockResolvedValue({
+        ...eventData,
+        id: 'existing-id',
+        createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       await service.upsertBySourceUrl(eventData as any);
 
+      expect(prisma.event.update).toHaveBeenCalled();
+      expect(prisma.event.create).not.toHaveBeenCalled();
       expect(notificationsQueue.add).not.toHaveBeenCalled();
     });
   });

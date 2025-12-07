@@ -1,0 +1,14 @@
+
+> api@0.0.1 test
+> jest src/scraper/scraper.controller.spec.ts
+
+PASS src/scraper/scraper.controller.spec.ts
+  ScraperController
+    √ should be defined (11 ms)
+    √ should trigger manual cron logic (2 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       2 passed, 2 total
+Snapshots:   0 total
+Time:        1.412 s, estimated 2 s
+Ran all test suites matching src/scraper/scraper.controller.spec.ts.

@@ -152,7 +152,7 @@ describe('ScraperService Micro-Batching & Error Handling', () => {
 
             // We manually execute the logic that ScraperService.runPlatform does:
             // pass a callback that handles error suppression.
-            const safeCallback = async (e) => {
+            const safeCallback = async (e: StandardizedEvent) => {
                 try {
                     await failingUpsert(e);
                 } catch (err) {
@@ -164,6 +164,43 @@ describe('ScraperService Micro-Batching & Error Handling', () => {
 
             // Both events should have triggered the callback attempt
             expect(failingUpsert).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    describe('Fallback Logic', () => {
+        it('should generate fallback ID for #N/A details URL', async () => {
+            mockPage.$$eval.mockResolvedValue([
+                {
+                    title: 'Broken Link Run',
+                    detailsUrl: 'https://corridasemaratonas.com.br/corridas-na-bahia/#N/A',
+                    dateStr: '01/01/2025',
+                    city: 'Salvador',
+                    distancesStr: '5km'
+                }
+            ]);
+
+            const mockCallback = jest.fn();
+
+            // We must reset goto mocks to count strictly
+            mockPage.goto.mockClear();
+
+            const results = await scraperInstance.scrape(mockBrowser, mockCallback, 'BA');
+
+            // Verify result
+            expect(results.length).toBe(1);
+            const event = results[0];
+
+            expect(event.sourceUrl).toContain('/fallback/BA/01012025-broken-link-run-salvador');
+            expect(event.priceText).toBe('Sob Consulta');
+
+            // Verify callback matches sourceUrl
+            expect(mockCallback).toHaveBeenCalledWith(expect.objectContaining({
+                sourceUrl: event.sourceUrl
+            }));
+
+            // Verify page.goto was called exactly once (for the list page), NOT for the #N/A link
+            expect(mockPage.goto).toHaveBeenCalledTimes(1);
+            expect(mockPage.goto).toHaveBeenCalledWith(expect.stringContaining('corridas-na-bahia'), expect.any(Object));
         });
     });
 });

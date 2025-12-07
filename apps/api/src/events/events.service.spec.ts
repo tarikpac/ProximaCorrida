@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EventsService } from './events.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 describe('EventsService', () => {
   let service: EventsService;
@@ -23,6 +24,12 @@ describe('EventsService', () => {
         EventsService,
         { provide: SupabaseService, useValue: mockSupabaseService },
         { provide: 'BullQueue_notifications', useValue: { add: jest.fn() } },
+        {
+          provide: PrismaService,
+          useValue: {
+            event: { create: jest.fn() },
+          },
+        },
       ],
     }).compile();
 

@@ -2,51 +2,39 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { EventsService } from './events.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { SearchEventsDto } from './dto/search-events.dto';
+import { PrismaService } from '../prisma/prisma.service';
 
 describe('EventsService Search Logic', () => {
   let service: EventsService;
-  let supabaseService: SupabaseService;
-  let mockSupabaseClient: any;
-  let mockQueryBuilder: any;
+  let prisma: PrismaService;
 
   beforeEach(async () => {
-    mockQueryBuilder = {
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      ilike: jest.fn().mockReturnThis(),
-      gte: jest.fn().mockReturnThis(),
-      lte: jest.fn().mockReturnThis(),
-      contains: jest.fn().mockReturnThis(),
-      or: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      range: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockReturnThis(),
-      overlaps: jest.fn().mockReturnThis(),
-      filter: jest.fn().mockReturnThis(),
-      then: jest.fn().mockImplementation((callback) => {
-        callback({ data: [], error: null });
-      }),
-    };
-
-    mockSupabaseClient = {
-      from: jest.fn().mockReturnValue(mockQueryBuilder),
-    };
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EventsService,
         {
           provide: SupabaseService,
-          useValue: {
-            getClient: jest.fn().mockReturnValue(mockSupabaseClient),
-          },
+          useValue: { getClient: jest.fn() },
         },
         { provide: 'BullQueue_notifications', useValue: { add: jest.fn() } },
+        {
+          provide: PrismaService,
+          useValue: {
+            event: {
+              findMany: jest.fn(),
+              count: jest.fn(),
+            },
+          },
+        },
       ],
     }).compile();
 
     service = module.get<EventsService>(EventsService);
-    supabaseService = module.get<SupabaseService>(SupabaseService);
+    prisma = module.get<PrismaService>(PrismaService);
+
+    // Default mock implementation
+    (prisma.event.findMany as jest.Mock).mockResolvedValue([]);
+    (prisma.event.count as jest.Mock).mockResolvedValue(0);
   });
 
   it('should filter by state and city', async () => {
@@ -57,12 +45,13 @@ describe('EventsService Search Logic', () => {
 
     await service.findAll(params);
 
-    expect(mockSupabaseClient.from).toHaveBeenCalledWith('Event');
-    expect(mockQueryBuilder.select).toHaveBeenCalled();
-    expect(mockQueryBuilder.eq).toHaveBeenCalledWith('state', 'PB');
-    expect(mockQueryBuilder.ilike).toHaveBeenCalledWith(
-      'city',
-      '%Joao Pessoa%',
+    expect(prisma.event.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          state: 'PB',
+          city: { contains: 'Joao Pessoa', mode: 'insensitive' },
+        }),
+      }),
     );
   });
 
@@ -74,8 +63,16 @@ describe('EventsService Search Logic', () => {
 
     await service.findAll(params);
 
-    expect(mockQueryBuilder.gte).toHaveBeenCalledWith('date', '2025-01-01');
-    expect(mockQueryBuilder.lte).toHaveBeenCalledWith('date', '2025-01-31');
+    expect(prisma.event.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          date: expect.objectContaining({
+            gte: '2025-01-01',
+            lte: '2025-01-31',
+          }),
+        }),
+      }),
+    );
   });
 
   it('should filter by distances', async () => {
@@ -85,10 +82,12 @@ describe('EventsService Search Logic', () => {
 
     await service.findAll(params);
 
-    // Implementation uses .filter('distances', 'ov', '{5k,10k}')
-    expect(mockQueryBuilder.overlaps).toHaveBeenCalledWith(
-      'distances',
-      ['5k', '10k'],
+    expect(prisma.event.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          distances: { hasSome: ['5k', '10k'] },
+        }),
+      }),
     );
   });
 
@@ -99,10 +98,12 @@ describe('EventsService Search Logic', () => {
 
     await service.findAll(params);
 
-    // Assuming implementation uses .or for title, city, organizer
-    expect(mockQueryBuilder.ilike).toHaveBeenCalledWith(
-      'title',
-      '%Maratona%',
+    expect(prisma.event.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          title: { contains: 'Maratona', mode: 'insensitive' },
+        }),
+      }),
     );
   });
 
@@ -114,7 +115,11 @@ describe('EventsService Search Logic', () => {
 
     await service.findAll(params);
 
-    // Page 2, limit 10 means range(10, 19)
-    expect(mockQueryBuilder.range).toHaveBeenCalledWith(10, 19);
+    expect(prisma.event.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skip: 10, // (2 - 1) * 10
+        take: 10,
+      }),
+    );
   });
 });

@@ -1,0 +1,33 @@
+
+> api@0.0.1 test
+> jest src/events
+
+PASS src/events/events.model-expansion.spec.ts
+  ● Console
+
+    console.log
+      PrismaService initializing. CWD: C:\proximacorrida\apps\api
+
+      at new PrismaService (prisma/prisma.service.ts:9:13)
+          at async Promise.all (index 3)
+          at async Promise.all (index 1)
+
+    console.log
+      PrismaService initializing. DATABASE_URL from ConfigService: postgresql://postgres:password@localhost:5432/proximacorrida?schema=public
+
+      at new PrismaService (prisma/prisma.service.ts:10:13)
+          at async Promise.all (index 3)
+          at async Promise.all (index 1)
+
+PASS src/events/events.cleanup.spec.ts
+PASS src/events/events.service.spec.ts
+PASS src/events/events.state-aggregation.spec.ts
+PASS src/events/events.search.spec.ts
+PASS src/events/events-enqueue.spec.ts
+PASS src/events/events.controller.spec.ts
+
+Test Suites: 7 passed, 7 total
+Tests:       16 passed, 16 total
+Snapshots:   0 total
+Time:        2.864 s, estimated 3 s
+Ran all test suites matching src/events.

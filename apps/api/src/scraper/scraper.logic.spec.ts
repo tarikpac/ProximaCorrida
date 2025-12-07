@@ -63,17 +63,6 @@ describe('Scraper Logic', () => {
   describe('EventsService.upsertFromStandardized', () => {
     let service: EventsService;
 
-    // We need to access the mock builder to spy on it
-    const mockBuilder = {
-      from: jest.fn().mockReturnThis(),
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      maybeSingle: jest.fn().mockResolvedValue({ data: null }),
-      single: jest.fn().mockResolvedValue({ data: null }),
-      insert: jest.fn().mockReturnThis(),
-      update: jest.fn().mockReturnThis(),
-    };
-
     beforeEach(async () => {
       const module: TestingModule = await Test.createTestingModule({
         providers: [
@@ -82,7 +71,7 @@ describe('Scraper Logic', () => {
           {
             provide: SupabaseService,
             useValue: {
-              getClient: jest.fn().mockReturnValue(mockBuilder),
+              getClient: jest.fn(),
             },
           },
           {
@@ -93,14 +82,7 @@ describe('Scraper Logic', () => {
       }).compile();
 
       service = module.get<EventsService>(EventsService);
-
-      // Reset mocks
       jest.clearAllMocks();
-      mockBuilder.from.mockReturnThis();
-      mockBuilder.select.mockReturnThis();
-      mockBuilder.eq.mockReturnThis();
-      mockBuilder.insert.mockReturnThis();
-      mockBuilder.update.mockReturnThis();
     });
 
     it('should deduplicate by sourcePlatform + sourceEventId', async () => {
@@ -117,19 +99,22 @@ describe('Scraper Logic', () => {
         priceMin: 50,
       };
 
-      // Mock maybeSingle to return existing event
-      mockBuilder.maybeSingle.mockResolvedValueOnce({
-        data: { id: 'existing-id' },
+      // Mock findFirst to return existing event
+      (mockPrismaService.event.findFirst as jest.Mock).mockResolvedValue({
+        id: 'existing-id',
       });
 
-      // Mock single for update return
-      mockBuilder.single.mockResolvedValueOnce({
-        data: { id: 'existing-id', title: 'Updated' },
+      // Mock update
+      (mockPrismaService.event.update as jest.Mock).mockResolvedValue({
+        id: 'existing-id',
+        title: 'Updated',
       });
 
       await service.upsertFromStandardized(event);
 
-      expect(mockBuilder.update).toHaveBeenCalled();
+      expect(mockPrismaService.event.findFirst).toHaveBeenCalled();
+      expect(mockPrismaService.event.update).toHaveBeenCalled();
+      expect(mockPrismaService.event.create).not.toHaveBeenCalled();
     });
 
     it('should create new event if not found', async () => {
@@ -145,17 +130,19 @@ describe('Scraper Logic', () => {
         sourceEventId: '456',
       };
 
-      // Mock maybeSingle to return null (not found)
-      mockBuilder.maybeSingle.mockResolvedValue({ data: null });
+      // Mock findFirst to return null (not found)
+      (mockPrismaService.event.findFirst as jest.Mock).mockResolvedValue(null);
 
-      // Mock single for insert return
-      mockBuilder.single.mockResolvedValue({
-        data: { id: 'new-id', title: 'New Event' },
+      // Mock create
+      (mockPrismaService.event.create as jest.Mock).mockResolvedValue({
+        id: 'new-id',
+        title: 'New Event',
       });
 
       await service.upsertFromStandardized(event);
 
-      expect(mockBuilder.insert).toHaveBeenCalled();
+      expect(mockPrismaService.event.create).toHaveBeenCalled();
+      expect(mockPrismaService.event.update).not.toHaveBeenCalled();
     });
   });
 });
