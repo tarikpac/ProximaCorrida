@@ -418,4 +418,38 @@ export class EventsService {
 
     return new Date(isoWithOffset);
   }
+
+  /**
+   * Check which events from the provided list are "fresh" and don't need re-scraping.
+   * An event is considered fresh if it exists in the database AND its updatedAt
+   * is within the staleness threshold.
+   *
+   * @param sourceUrls List of source URLs to check
+   * @param stalenessDays Number of days after which an event is considered stale
+   * @returns Set of sourceUrls that are fresh (should be skipped)
+   */
+  async checkEventsFreshness(
+    sourceUrls: string[],
+    stalenessDays: number,
+  ): Promise<Set<string>> {
+    if (sourceUrls.length === 0) {
+      return new Set();
+    }
+
+    // Calculate the staleness threshold date
+    const stalenessThreshold = new Date();
+    stalenessThreshold.setDate(stalenessThreshold.getDate() - stalenessDays);
+
+    // Batch query: find all events with the given sourceUrls that are fresh
+    const freshEvents = await this.prisma.event.findMany({
+      where: {
+        sourceUrl: { in: sourceUrls },
+        updatedAt: { gte: stalenessThreshold },
+      },
+      select: { sourceUrl: true },
+    });
+
+    // Return as a Set for O(1) lookup
+    return new Set(freshEvents.map((e) => e.sourceUrl));
+  }
 }

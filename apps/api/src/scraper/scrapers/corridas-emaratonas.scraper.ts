@@ -1,5 +1,5 @@
 import { Browser, Page } from 'playwright';
-import { BaseScraper } from './base.scraper';
+import { BaseScraper, ScraperContext } from './base.scraper';
 import { StandardizedEvent } from '../interfaces/standardized-event.interface';
 import { Logger } from '@nestjs/common';
 import {
@@ -55,7 +55,19 @@ export class CorridasEMaratonasScraper extends BaseScraper {
     browser: Browser,
     onEventFound?: (event: StandardizedEvent) => Promise<void>,
     filter?: string,
+    scraperContext?: ScraperContext,
   ): Promise<StandardizedEvent[]> {
+    // Extract configuration with defaults
+    const detailTimeoutMs = scraperContext?.options?.detailTimeoutMs ?? 15000;
+    const regTimeoutMs = scraperContext?.options?.regTimeoutMs ?? 20000;
+    const eventDelayMs = scraperContext?.options?.eventDelayMs ?? 500;
+    const shouldLogDebug = scraperContext?.options?.shouldLogDebug ?? false;
+
+    // Counters for summary
+    let processedCount = 0;
+    let skippedCount = 0;
+    let errorCount = 0;
+
     const results: StandardizedEvent[] = [];
     const context = await browser.newContext({
       userAgent:
@@ -81,11 +93,11 @@ export class CorridasEMaratonasScraper extends BaseScraper {
       this.logger.log(`Scraping ${config.state} from ${config.url}`);
       try {
         const page = await context.newPage();
-        await page.goto(config.url, { timeout: 60000 });
+        await page.goto(config.url, { timeout: detailTimeoutMs * 2 });
 
         // Wait for table rows or check if empty
         try {
-          await page.waitForSelector('.table-row', { timeout: 15000 });
+          await page.waitForSelector('.table-row', { timeout: detailTimeoutMs });
         } catch (e) {
           this.logger.warn(`No events found for ${config.state} or timeout.`);
           await page.close();
@@ -124,6 +136,20 @@ export class CorridasEMaratonasScraper extends BaseScraper {
         // Create one page for details to be reused
         const detailsPage = await context.newPage();
 
+        // Pre-fetch filter: check which URLs are fresh and can be skipped
+        let freshUrls: Set<string> = new Set();
+        if (scraperContext?.checkFreshness) {
+          const allUrls = rawEvents
+            .map((r) => r.detailsUrl)
+            .filter((url): url is string => !!url && url.startsWith('http') && !url.includes('#N/A'));
+          if (allUrls.length > 0) {
+            freshUrls = await scraperContext.checkFreshness(allUrls);
+            if (shouldLogDebug) {
+              this.logger.debug(`Pre-fetch filter: ${freshUrls.size} fresh events will be skipped`);
+            }
+          }
+        }
+
         for (const raw of rawEvents) {
           // Variables to accept either scraped data or fallback
           let regLink: string | null = null;
@@ -149,39 +175,54 @@ export class CorridasEMaratonasScraper extends BaseScraper {
               raw.detailsUrl.startsWith('http');
 
             if (isValidUrl) {
-              await detailsPage.goto(raw.detailsUrl, {
-                timeout: 30000,
-                waitUntil: 'domcontentloaded',
-              });
-
-              // Detect registration link and platform
-              const regLinkInfo = await this.detectRegistrationLink(detailsPage);
-              regLink = regLinkInfo.url;
-
-              // First try to get price from the details page
-              const detailsPagePrice =
-                await this.extractPriceWithClassification(detailsPage);
-              priceText = detailsPagePrice.priceText;
-              priceMin = detailsPagePrice.priceMin;
-
-              // Try to get image from details page first
-              imageUrl = await this.extractImageWithFallback(detailsPage);
-
-              // If we have a registration link, navigate there for better data
-              if (regLinkInfo.url) {
-                const regResult = await this.extractImageAndPrice(
-                  detailsPage,
-                  regLinkInfo,
-                );
-
-                // Use registration page data if available (usually better)
-                if (regResult.imageUrl) {
-                  imageUrl = regResult.imageUrl;
+              // Pre-fetch filter: skip if event is fresh
+              if (freshUrls.has(raw.detailsUrl)) {
+                skippedCount++;
+                if (shouldLogDebug) {
+                  this.logger.debug(`Skipping fresh event: ${raw.title}`);
                 }
-                if (regResult.priceResult?.priceText) {
-                  priceText = regResult.priceResult.priceText;
-                  priceMin = regResult.priceResult.priceMin;
+                continue;
+              }
+
+              try {
+                await detailsPage.goto(raw.detailsUrl, {
+                  timeout: detailTimeoutMs,
+                  waitUntil: 'domcontentloaded',
+                });
+
+                // Detect registration link and platform
+                const regLinkInfo = await this.detectRegistrationLink(detailsPage);
+                regLink = regLinkInfo.url;
+
+                // First try to get price from the details page
+                const detailsPagePrice =
+                  await this.extractPriceWithClassification(detailsPage);
+                priceText = detailsPagePrice.priceText;
+                priceMin = detailsPagePrice.priceMin;
+
+                // Try to get image from details page first
+                imageUrl = await this.extractImageWithFallback(detailsPage);
+
+                // If we have a registration link, navigate there for better data
+                if (regLinkInfo.url) {
+                  const regResult = await this.extractImageAndPrice(
+                    detailsPage,
+                    regLinkInfo,
+                  );
+
+                  // Use registration page data if available (usually better)
+                  if (regResult.imageUrl) {
+                    imageUrl = regResult.imageUrl;
+                  }
+                  if (regResult.priceResult?.priceText) {
+                    priceText = regResult.priceResult.priceText;
+                    priceMin = regResult.priceResult.priceMin;
+                  }
                 }
+              } catch (navError) {
+                // Graceful fallback: log warning and continue with basic info
+                this.logger.warn(`Timeout loading details for ${raw.title}: ${(navError as Error).message}`);
+                errorCount++;
               }
             } else {
               // Fallback Logic for #N/A or invalid URLs
@@ -233,14 +274,17 @@ export class CorridasEMaratonasScraper extends BaseScraper {
               await onEventFound(evtParams);
             }
 
-            // Small delay to be gentle on CPU and Server
+            // Small delay to be gentle on CPU and Server (configurable)
             if (isValidUrl) {
-              await new Promise((r) => setTimeout(r, 1000));
+              await new Promise((r) => setTimeout(r, eventDelayMs));
             } else {
               // Minimal delay for fallback loops
               await new Promise((r) => setTimeout(r, 100));
             }
+
+            processedCount++;
           } catch (err) {
+            errorCount++;
             this.logger.error(
               `Failed to process event ${raw.title}: ${(err as Error).message}`,
             );
@@ -252,6 +296,11 @@ export class CorridasEMaratonasScraper extends BaseScraper {
       } catch (error) {
         this.logger.error(`Failed to scrape state ${config.state}`, error);
       }
+
+      // Job summary log for this state
+      this.logger.log(
+        `[${config.state}] Summary: processed=${processedCount}, skipped=${skippedCount}, errors=${errorCount}`,
+      );
     }
 
     await context.close();
@@ -458,7 +507,7 @@ export class CorridasEMaratonasScraper extends BaseScraper {
       try {
         // Navigate to registration page
         await page.goto(regLinkInfo.url, {
-          timeout: 45000,
+          timeout: 20000,
           waitUntil: 'domcontentloaded',
         });
 

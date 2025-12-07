@@ -2,10 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { chromium } from 'playwright-extra';
 import stealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { EventsService } from '../events/events.service';
-import { BaseScraper } from './scrapers/base.scraper';
+import { BaseScraper, ScraperContext } from './scrapers/base.scraper';
 import { CorridasEMaratonasScraper } from './scrapers/corridas-emaratonas.scraper';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { ScraperConfigService } from './scraper-config.service';
 
 chromium.use(stealthPlugin());
 
@@ -17,6 +18,7 @@ export class ScraperService {
   constructor(
     private readonly eventsService: EventsService,
     @InjectQueue('scraper') private readonly scraperQueue: Queue,
+    private readonly scraperConfigService: ScraperConfigService,
   ) {
     this.scrapers.push(new CorridasEMaratonasScraper());
   }
@@ -67,6 +69,13 @@ export class ScraperService {
       `Starting scrape for platform: ${platformName} ${filter ? `[Target: ${filter}]` : ''
       }`,
     );
+
+    // Get scraper configuration
+    const scraperOptions = this.scraperConfigService.getScraperOptions();
+    if (scraperOptions.shouldLogDebug) {
+      this.logger.debug(`Scraper config: ${JSON.stringify(scraperOptions)}`);
+    }
+
     const browser = await chromium.launch({
       headless: true,
       args: [
@@ -91,18 +100,23 @@ export class ScraperService {
       }
     };
 
+    // Create scraper context with configuration and freshness check function
+    const scraperContext: ScraperContext = {
+      options: scraperOptions,
+      checkFreshness: async (urls: string[]) => {
+        return this.eventsService.checkEventsFreshness(
+          urls,
+          scraperOptions.stalenessDays,
+        );
+      },
+    };
+
     try {
-      const events = await scraper.scrape(browser, upsertEvent, filter);
+      const events = await scraper.scrape(browser, upsertEvent, filter, scraperContext);
       this.logger.log(
         `Scraped ${events.length} events from ${platformName} ${filter ? `[${filter}]` : ''
         }. (Real-time upsert enabled)`,
       );
-
-
-      // If the scraper implementation doesn't support callback (or returned events for legacy reasons),
-      // we could double-check, but assuming CorridasEMaratonasScraper will use the callback, we are good.
-      // To be safe against double-upserts (wasteful db calls), we can empty the list or just trust idempotency.
-      // Ideally, the scraper shouldn't return the list if it already pushed them, OR we just log summary.
 
       this.logger.log(`Finished processing ${platformName}`);
     } catch (error) {
@@ -113,3 +127,4 @@ export class ScraperService {
     }
   }
 }
+
