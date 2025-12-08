@@ -177,6 +177,25 @@ export class TicketSportsProvider implements ProviderScraper {
                 return emptyResult();
             }
 
+            // Click "MOSTRAR MAIS" button to load all events
+            try {
+                const showMoreBtn = await page.$('button:text("MOSTRAR MAIS"), a:text("MOSTRAR MAIS"), [class*="more-events"]');
+                if (showMoreBtn) {
+                    let clickCount = 0;
+                    while (clickCount < 5) { // Max 5 clicks
+                        const btn = await page.$('button:text("MOSTRAR MAIS"), a:text("MOSTRAR MAIS")');
+                        if (!btn) break;
+
+                        await btn.click();
+                        await page.waitForTimeout(1500);
+                        clickCount++;
+                        providerLog(PROVIDER_NAME, `Clicked MOSTRAR MAIS (${clickCount})`, 'debug');
+                    }
+                }
+            } catch {
+                // Button not found or click failed - continue with visible events
+            }
+
             // Extract event cards from listing
             const rawEvents = await this.extractEventCards(page);
             providerLog(PROVIDER_NAME, `Found ${rawEvents.length} events in listing`);
@@ -289,8 +308,8 @@ export class TicketSportsProvider implements ProviderScraper {
                 const mapsLink = document.querySelector('a[href*="google.com/maps"]');
                 const locationText = mapsLink?.textContent?.trim() || '';
 
-                // Find registration button
-                const regButton = document.querySelector('#bot_inscrever, a[href*="inscrever"], button:has-text("Inscrever")') as HTMLAnchorElement | HTMLButtonElement;
+                // Find registration button - use valid CSS selectors only
+                const regButton = document.querySelector('#bot_inscrever, a[href*="inscrever"], [class*="inscrever"], button[class*="btn"]') as HTMLAnchorElement | HTMLButtonElement;
                 const regUrl = (regButton as HTMLAnchorElement)?.href || window.location.href;
 
                 // Find image

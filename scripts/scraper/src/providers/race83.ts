@@ -257,26 +257,32 @@ export class Race83Provider implements ProviderScraper {
                     title = document.title.split('|')[0]?.trim() || '';
                 }
 
-                // Location - look for patterns like "CIDADE: X" or "X - ST"
+                // Location - first use the raw location from listing (e.g., "JOÃO PESSOA - PB")
                 let city = '';
                 let state = '';
 
-                const cidadeMatch = bodyText.match(/CIDADE[\s:]+([^\n]+)/i);
-                if (cidadeMatch) {
-                    city = cidadeMatch[1].trim();
+                // Try to extract from known location pattern at end of text block
+                // Pattern examples: "JOÃO PESSOA - PB", "CAMPINA GRANDE-PB"
+                const locationPatterns = [
+                    /([A-Za-zÀ-ú\s]+)\s*[-–]\s*(PB|PE|RN|CE|BA|AL|SE|MA|PI)(?:\s|$)/,
+                    /CIDADE[:\s]+([^,\n-]+)[-,\s]+([A-Z]{2})/i,
+                    /LOCAL[:\s]+([^,\n-]+)[-,\s]+([A-Z]{2})/i,
+                ];
+
+                for (const pattern of locationPatterns) {
+                    const match = bodyText.match(pattern);
+                    if (match) {
+                        city = match[1].trim();
+                        state = match[2].toUpperCase();
+                        break;
+                    }
                 }
 
-                const estadoMatch = bodyText.match(/ESTADO[\s:]+([A-Z]{2})/i);
-                if (estadoMatch) {
-                    state = estadoMatch[1];
-                }
-
-                // Try city-state pattern if not found
+                // If still no state, try explicit patterns
                 if (!state) {
-                    const cityStateMatch = bodyText.match(/([A-Za-zÀ-ú\s]+)\s*[-–]\s*([A-Z]{2})/);
-                    if (cityStateMatch) {
-                        if (!city) city = cityStateMatch[1].trim();
-                        state = cityStateMatch[2];
+                    const estadoMatch = bodyText.match(/ESTADO[:\s]+([A-Z]{2})/i);
+                    if (estadoMatch) {
+                        state = estadoMatch[1].toUpperCase();
                     }
                 }
 
@@ -318,10 +324,23 @@ export class Race83Provider implements ProviderScraper {
                 };
             });
 
+            // Use rawEvent.location as fallback for state if available
+            // Format: "JOÃO PESSOA - PB" or " JOÃO PESSOA - PB"
+            let finalCity = details.city;
+            let finalState = details.state;
+
+            if (!finalState && rawEvent.location) {
+                const locMatch = rawEvent.location.match(/(.+?)\s*[-–]\s*([A-Z]{2})\s*$/i);
+                if (locMatch) {
+                    if (!finalCity) finalCity = locMatch[1].trim();
+                    finalState = locMatch[2].toUpperCase();
+                }
+            }
+
             // Check state filter
-            if (states && states.length > 0 && details.state) {
-                if (!states.includes(details.state)) {
-                    providerLog(PROVIDER_NAME, `Skipping event in ${details.state} (not in filter)`, 'debug');
+            if (states && states.length > 0 && finalState) {
+                if (!states.includes(finalState)) {
+                    providerLog(PROVIDER_NAME, `Skipping event in ${finalState} (not in filter)`, 'debug');
                     await closePage(page);
                     return null;
                 }
@@ -341,8 +360,8 @@ export class Race83Provider implements ProviderScraper {
             const event: StandardizedEvent = {
                 title: details.title || rawEvent.title,
                 date,
-                city: details.city || null,
-                state: details.state || null,
+                city: finalCity || null,
+                state: finalState || null,
                 distances: details.distances.length > 0 ? details.distances : ['Corrida'],
                 regUrl: details.regUrl,
                 sourceUrl: rawEvent.detailUrl,
