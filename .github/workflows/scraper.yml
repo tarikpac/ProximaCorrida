@@ -1,16 +1,30 @@
-name: Daily Scraper Trigger
+# =====================================================
+# ⚠️  DEPRECATED - DO NOT USE
+# =====================================================
+# This workflow is DISABLED. It was replaced by:
+#   - scraper-standalone.yml (runs Playwright scraper directly)
+#
+# The old approach called /scraper/cron-trigger on Render.
+# Now the scraper runs as a standalone script on GitHub Actions,
+# writing directly to Supabase.
+#
+# Date deprecated: 2025-12-08
+# =====================================================
 
-on:
-  schedule:
-    # Runs at 06:00 UTC (03:00 AM Brasilia Time)
-    - cron: '0 6 * * *'
-  workflow_dispatch: # Allows manual trigger from GitHub UI
+name: "[DEPRECATED] Daily Scraper Trigger"
+
+# Disable scheduled runs - this workflow should not run
+# on:
+#   schedule:
+#     - cron: '0 6 * * *'
+#   workflow_dispatch:
+
+# If you need to trigger the scraper, use "Standalone Scraper" workflow instead
 
 jobs:
-  trigger-scraper:
+  deprecated-notice:
     runs-on: ubuntu-latest
+    if: false  # Never run this job
     steps:
-      - name: Trigger Scraper API
-        run: |
-          curl -X POST https://proximacorrida.onrender.com/scraper/cron-trigger \
-          -H "Content-Type: application/json"
+      - name: Notice
+        run: echo "This workflow is deprecated. Use scraper-standalone.yml instead."

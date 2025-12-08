@@ -1,11 +1,12 @@
 # GitHub Actions Workflow: ProximaCorrida Standalone Scraper
 # Runs daily at 06:00 UTC (03:00 BRT) to scrape events from corridasemaratonas.com.br
-# This is the NEW standalone version that doesn't require the API to be running
+# This is the standalone version that doesn't require the API to be running.
+# Push notifications are sent inline by calling the Lambda API.
 #
 # Required Secrets:
 # - DATABASE_URL: Supabase PostgreSQL connection string (with pooler)
 # - DIRECT_URL: Direct PostgreSQL connection string (without pooler)
-# - API_BASE_URL: Base URL for the API (for notification triggers)
+# - API_BASE_URL: Lambda API Gateway URL (e.g., https://xxx.execute-api.sa-east-1.amazonaws.com)
 
 name: Standalone Scraper
 
