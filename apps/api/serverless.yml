@@ -1,0 +1,85 @@
+service: proximacorrida-api
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: sa-east-1
+  stage: ${opt:stage, 'prod'}
+  memorySize: 512
+  timeout: 30
+  
+  # Environment variables
+  environment:
+    NODE_ENV: production
+    IS_LAMBDA: "true"
+    DATABASE_URL: ${ssm:/proximacorrida/${self:provider.stage}/DATABASE_URL}
+    DIRECT_URL: ${ssm:/proximacorrida/${self:provider.stage}/DIRECT_URL, ''}
+    VAPID_PUBLIC_KEY: ${ssm:/proximacorrida/${self:provider.stage}/VAPID_PUBLIC_KEY}
+    VAPID_PRIVATE_KEY: ${ssm:/proximacorrida/${self:provider.stage}/VAPID_PRIVATE_KEY}
+    VAPID_SUBJECT: ${ssm:/proximacorrida/${self:provider.stage}/VAPID_SUBJECT, 'mailto:contato@proximacorrida.com.br'}
+    FRONTEND_URL: ${ssm:/proximacorrida/${self:provider.stage}/FRONTEND_URL, 'https://proxima-corrida.vercel.app/'}
+
+functions:
+  api:
+    handler: dist/src/lambda.handler
+    description: ProximaCorrida API - NestJS on Lambda
+    events:
+      - httpApi:
+          method: '*'
+          path: '/{proxy+}'
+      - httpApi:
+          method: 'GET'
+          path: '/'
+
+package:
+  individually: false
+  excludeDevDependencies: true
+  patterns:
+    # Include only what's needed
+    - 'dist/**'
+    - 'node_modules/.prisma/**'
+    - 'node_modules/@prisma/client/**'
+    - 'node_modules/@nestjs/**'
+    - 'node_modules/@vendia/**'
+    - 'node_modules/rxjs/**'
+    - 'node_modules/reflect-metadata/**'
+    - 'node_modules/class-validator/**'
+    - 'node_modules/class-transformer/**'
+    - 'node_modules/web-push/**'
+    - 'node_modules/express/**'
+    - 'node_modules/body-parser/**'
+    - 'node_modules/cors/**'
+    - 'node_modules/cookie-parser/**'
+    - 'prisma/schema.prisma'
+    - 'package.json'
+    # Exclude everything else
+    - '!**/*.ts'
+    - '!**/*.md'
+    - '!**/*.map'
+    - '!**/test/**'
+    - '!**/tests/**'
+    - '!**/*.spec.js'
+    - '!**/*.test.js'
+    - '!src/**'
+    - '!test/**'
+    - '!.git/**'
+    - '!.github/**'
+    - '!.serverless/**'
+    - '!node_modules/playwright/**'
+    - '!node_modules/playwright-core/**'
+    - '!node_modules/playwright-extra/**'
+    - '!node_modules/puppeteer*/**'
+    - '!node_modules/typescript/**'
+    - '!node_modules/@types/**'
+    - '!node_modules/jest/**'
+    - '!node_modules/eslint/**'
+    - '!node_modules/prettier/**'
+    - '!node_modules/serverless/**'
+    - '!node_modules/serverless-offline/**'
+    - '!node_modules/@nestjs/cli/**'
+    - '!node_modules/@nestjs/schematics/**'
+    - '!node_modules/@nestjs/testing/**'
+    - '!node_modules/bullmq/**'
+    - '!node_modules/ioredis/**'

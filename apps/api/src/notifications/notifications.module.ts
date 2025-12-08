@@ -3,23 +3,25 @@ import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ConfigModule } from '@nestjs/config';
-import { BullModule } from '@nestjs/bullmq';
-import { NotificationsProcessor } from './notifications.processor';
 
+/**
+ * NotificationsModule - Handles push notification subscriptions and sending.
+ * 
+ * NOTE: BullMQ queue was removed for Lambda compatibility.
+ * Push notifications are now sent inline (synchronously).
+ * 
+ * If notification volume increases significantly in the future,
+ * consider reintroducing async processing via:
+ * - AWS SQS + Lambda trigger
+ * - Or re-adding BullMQ with a separate worker container
+ */
 @Module({
   imports: [
     PrismaModule,
     ConfigModule,
-    BullModule.registerQueue({
-      name: 'notifications',
-      defaultJobOptions: {
-        removeOnComplete: true,
-        removeOnFail: 100,
-      },
-    }),
   ],
   controllers: [NotificationsController],
-  providers: [NotificationsService, NotificationsProcessor],
+  providers: [NotificationsService],
   exports: [NotificationsService],
 })
 export class NotificationsModule { }

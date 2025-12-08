@@ -6,11 +6,9 @@ import { PrismaClient } from '@prisma/client';
 export class PrismaService extends PrismaClient implements OnModuleInit {
   constructor(configService: ConfigService) {
     const url = configService.get('DATABASE_URL');
-    console.log('PrismaService initializing. CWD:', process.cwd());
-    console.log(
-      'PrismaService initializing. DATABASE_URL from ConfigService:',
-      url,
-    );
+    if (!url) {
+      console.error('PrismaService: DATABASE_URL is not configured');
+    }
     super({
       datasources: {
         db: {

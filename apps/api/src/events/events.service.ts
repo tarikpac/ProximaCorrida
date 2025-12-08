@@ -2,11 +2,20 @@ import { Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '../supabase/supabase.service';
 import { Prisma } from '@prisma/client';
 import { SearchEventsDto } from './dto/search-events.dto';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import { StandardizedEvent } from '../scraper/interfaces/standardized-event.interface';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
+/**
+ * EventsService - Handles CRUD operations for running events.
+ * 
+ * NOTE: Push notifications are now sent inline (synchronously) instead of
+ * being queued via BullMQ. This was done for Lambda compatibility.
+ * 
+ * If notification volume increases significantly, consider:
+ * - AWS SQS + Lambda trigger for async processing
+ * - Or reintroduce BullMQ with a separate worker
+ */
 @Injectable()
 export class EventsService {
   private readonly logger = new Logger(EventsService.name);
@@ -14,7 +23,7 @@ export class EventsService {
   constructor(
     private supabase: SupabaseService,
     private prisma: PrismaService,
-    @InjectQueue('notifications') private notificationsQueue: Queue,
+    private notificationsService: NotificationsService,
   ) { }
 
   async create(data: Prisma.EventCreateInput) {
@@ -166,23 +175,8 @@ export class EventsService {
         data: insertData as any,
       });
 
-      // Trigger Push Notification Job
-      try {
-        await this.notificationsQueue.add('send-push-notification', {
-          eventId: result.id,
-          eventTitle: result.title,
-          eventDate: result.date,
-          eventCity: result.city,
-          eventState: result.state,
-        });
-        this.logger.log(`Enqueued push notification for event ${result.id}`);
-      } catch (queueError) {
-        this.logger.error(
-          `Failed to enqueue push notification for event ${result.id}`,
-          queueError,
-        );
-        // Don't fail the request if queueing fails
-      }
+      // Send Push Notification inline (fire-and-forget, don't block the response)
+      this.sendPushNotificationAsync(result.id, result.title, result.state);
 
       return result;
     }
@@ -340,22 +334,8 @@ export class EventsService {
         data: insertData,
       });
 
-      // Trigger Push Notification Job
-      try {
-        await this.notificationsQueue.add('send-push-notification', {
-          eventId: result.id,
-          eventTitle: result.title,
-          eventDate: result.date,
-          eventCity: result.city,
-          eventState: result.state,
-        });
-        this.logger.log(`Enqueued push notification for event ${result.id}`);
-      } catch (queueError) {
-        this.logger.error(
-          `Failed to enqueue push notification for event ${result.id}`,
-          queueError,
-        );
-      }
+      // Send Push Notification inline (fire-and-forget, don't block the response)
+      this.sendPushNotificationAsync(result.id, result.title, result.state);
 
       return result;
     }
@@ -451,5 +431,30 @@ export class EventsService {
 
     // Return as a Set for O(1) lookup
     return new Set(freshEvents.map((e) => e.sourceUrl));
+  }
+
+  /**
+   * Send push notification asynchronously (fire-and-forget).
+   * This doesn't block the response and logs any errors.
+   */
+  private sendPushNotificationAsync(
+    eventId: string,
+    eventTitle: string,
+    eventState: string,
+  ): void {
+    // Fire and forget - don't await
+    this.notificationsService
+      .triggerEventNotification(eventId, eventTitle, eventState)
+      .then((result) => {
+        this.logger.log(
+          `Push notification sent for event ${eventId}: sent=${result.sent}, failed=${result.failed}`,
+        );
+      })
+      .catch((error) => {
+        this.logger.error(
+          `Failed to send push notification for event ${eventId}`,
+          error,
+        );
+      });
   }
 }

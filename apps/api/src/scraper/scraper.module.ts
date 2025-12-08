@@ -3,24 +3,26 @@ import { ConfigModule } from '@nestjs/config';
 import { ScraperService } from './scraper.service';
 import { EventsModule } from '../events/events.module';
 import { ScraperController } from './scraper.controller';
-import { BullModule } from '@nestjs/bullmq';
-import { ScraperProcessor } from './scraper.processor';
-import { ScraperSchedulerService } from './scraper.scheduler.service';
 import { ScraperConfigService } from './scraper-config.service';
 
+/**
+ * ScraperModule - Provides scraping utilities for the API.
+ * 
+ * NOTE: The main scraping work is now done by GitHub Actions (scripts/scraper).
+ * This module provides:
+ * - ScraperController: API endpoints for manual triggers or status checks
+ * - ScraperService: Core scraping logic (shared with standalone scraper)
+ * - ScraperConfigService: Configuration for scraper behavior
+ * 
+ * BullMQ queue and ScraperProcessor/ScraperSchedulerService were removed
+ * since scheduling is now handled by GitHub Actions cron.
+ */
 @Module({
   imports: [
     ConfigModule,
     EventsModule,
-    BullModule.registerQueue({
-      name: 'scraper',
-      defaultJobOptions: {
-        removeOnComplete: true,
-        removeOnFail: 100,
-      },
-    }),
   ],
-  providers: [ScraperService, ScraperProcessor, ScraperSchedulerService, ScraperConfigService],
+  providers: [ScraperService, ScraperConfigService],
   exports: [ScraperService, ScraperConfigService],
   controllers: [ScraperController],
 })
