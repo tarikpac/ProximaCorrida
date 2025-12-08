@@ -76,7 +76,9 @@ export class Race83Provider implements ProviderScraper {
 
             // Wait for event cards to load
             try {
-                await page.waitForSelector('h5, h6, a[href*="/evento/"]', { timeout: options.detailTimeoutMs });
+                // Wait for page content to load
+                await page.waitForTimeout(3000);
+                await page.waitForSelector('img, a[href*="evento"], button', { timeout: options.detailTimeoutMs });
             } catch {
                 providerLog(PROVIDER_NAME, 'No events found or timeout', 'warn');
                 await closePage(page);
@@ -116,38 +118,69 @@ export class Race83Provider implements ProviderScraper {
     }
 
     private async extractEventCards(page: Page): Promise<RawEventCard[]> {
-        return page.$$eval('a[href*="/evento/"], a[href*="/login/"]', (links) => {
+        // Race83 structure: Each event has an image, date text, title, location, and INSCREVA-SE button
+        return page.evaluate(() => {
+            const events: Array<{
+                title: string;
+                detailUrl: string;
+                dateStr: string;
+                location: string;
+                imageUrl: string | null;
+            }> = [];
             const seen = new Set<string>();
-            const events: RawEventCard[] = [];
 
-            links.forEach((link) => {
-                const anchor = link as HTMLAnchorElement;
+            // Find all INSCREVA-SE buttons which link to event pages
+            const buttons = document.querySelectorAll('a, button');
+            buttons.forEach((btn) => {
+                const text = btn.textContent?.trim().toUpperCase() || '';
+                if (!text.includes('INSCREVA') && !text.includes('INSCREV')) return;
 
-                // Skip if already seen
+                const anchor = btn.tagName === 'A'
+                    ? btn as HTMLAnchorElement
+                    : btn.closest('a') as HTMLAnchorElement;
+
+                if (!anchor?.href) return;
+                if (!anchor.href.includes('race83.com.br')) return;
                 if (seen.has(anchor.href)) return;
-
-                // Only process event detail links
-                if (!anchor.href.includes('/evento/') && !anchor.href.includes('/login/')) return;
-
                 seen.add(anchor.href);
 
-                // Try to find card container
-                const card = anchor.closest('div, article, li') || anchor.parentElement;
-                const img = card?.querySelector('img') as HTMLImageElement;
+                // Find the parent container
+                let container = anchor.closest('div, article, section, li');
+                if (!container) container = anchor.parentElement;
 
-                // Get text content for title
-                const h5 = card?.querySelector('h5');
-                const h6 = card?.querySelector('h6');
+                // Find event info - look for siblings or parent content
+                const allText = container?.textContent || '';
 
-                const title = h5?.textContent?.trim() || anchor.textContent?.trim() || '';
-                const dateStr = h6?.textContent?.trim() || '';
+                // Extract date (DD/MM/YYYY pattern)
+                const dateMatch = allText.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+                const dateStr = dateMatch ? dateMatch[1] : '';
 
-                // Skip navigation links
-                if (title.length < 5 || title.toUpperCase().includes('MENU')) return;
+                // Find image
+                const img = container?.querySelector('img') as HTMLImageElement;
+
+                // Extract title - usually the longest meaningful text
+                const textElements = container?.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, div') || [];
+                let title = '';
+                textElements.forEach((el) => {
+                    const t = el.textContent?.trim() || '';
+                    // Title should be longer than 10 chars, not a date, not "INSCREVA-SE"
+                    if (t.length > 10 && t.length < 100 &&
+                        !t.match(/^\d{1,2}\/\d{1,2}/) &&
+                        !t.toUpperCase().includes('INSCREVA') &&
+                        t.length > title.length) {
+                        title = t;
+                    }
+                });
+
+                // Skip if no meaningful title
+                if (!title || title.length < 5) return;
+
+                // Convert login URL to evento URL
+                const detailUrl = anchor.href.replace('/login/', '/evento/');
 
                 events.push({
                     title,
-                    detailUrl: anchor.href.replace('/login/', '/evento/'),
+                    detailUrl,
                     dateStr,
                     location: '',
                     imageUrl: img?.src || null,
@@ -218,9 +251,15 @@ export class Race83Provider implements ProviderScraper {
                 const ogImage = document.querySelector('meta[property="og:image"]') as HTMLMetaElement;
                 const imageUrl = mainImg?.src || ogImage?.content || null;
 
-                // Registration link
-                const regLink = document.querySelector('a[href*="/login/"], a:has-text("INSCREVA-SE")') as HTMLAnchorElement;
-                const regUrl = regLink?.href || window.location.href;
+                // Registration link (note: :has-text is not valid for querySelector)
+                const regLinks = document.querySelectorAll('a[href*="/login/"], a[href*="inscr"]');
+                let regUrl = window.location.href;
+                regLinks.forEach((link) => {
+                    const a = link as HTMLAnchorElement;
+                    if (a.textContent?.toUpperCase().includes('INSCREVA')) {
+                        regUrl = a.href;
+                    }
+                });
 
                 // Find distances
                 const distanceMatches = bodyText.match(/\d+\s*(?:km|k|quilômetros?|quilometros?)/gi) || [];

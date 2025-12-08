@@ -214,28 +214,49 @@ export class TicketSportsProvider implements ProviderScraper {
     }
 
     private async extractEventCards(page: Page): Promise<RawEventCard[]> {
-        return page.$$eval('div.events-grid a.card, a.card', (cards) => {
-            return cards.map((card) => {
-                const anchor = card as HTMLAnchorElement;
-                const img = card.querySelector('img') as HTMLImageElement;
-                const timeEl = card.querySelector('time');
+        // Wait a bit for dynamic content
+        await page.waitForTimeout(2000);
 
-                // Extract title from card content
-                const titleDiv = card.querySelector('div:nth-child(2) > div:nth-child(2)');
-                const title = titleDiv?.textContent?.trim() || '';
+        return page.$$eval('div.card.card-flex, div.card, a.card, [class*="card-evento"]', (cards) => {
+            return cards.map((card) => {
+                // Get anchor - might be the card itself or inside it
+                const anchor = card.tagName === 'A'
+                    ? card as HTMLAnchorElement
+                    : card.querySelector('a') as HTMLAnchorElement;
+
+                if (!anchor?.href) return null;
+
+                const img = card.querySelector('img') as HTMLImageElement;
+
+                // Try multiple selectors for title
+                const titleEl = card.querySelector('h2, h3, h4, .card-title, [class*="title"]');
+                let title = titleEl?.textContent?.trim() || '';
+
+                // Fallback: get all text and extract first meaningful line
+                if (!title) {
+                    const texts = Array.from(card.querySelectorAll('div, span, p'))
+                        .map(el => el.textContent?.trim())
+                        .filter(t => t && t.length > 5 && t.length < 100);
+                    title = texts[0] || '';
+                }
+
+                // Extract date - look for date patterns
+                const allText = card.textContent || '';
+                const dateMatch = allText.match(/(\d{1,2}\/\d{1,2}\/\d{4}|\d{1,2}\s+(?:jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[^\d]*\d{4})/i);
+                const dateStr = dateMatch ? dateMatch[1] : '';
 
                 // Extract location
-                const locationDiv = card.querySelector('div:last-child > div:last-child');
-                const location = locationDiv?.textContent?.trim() || '';
+                const locationEl = card.querySelector('[class*="location"], [class*="city"]');
+                const location = locationEl?.textContent?.trim() || '';
 
                 return {
                     title,
                     detailUrl: anchor.href,
-                    dateStr: timeEl?.getAttribute('datetime') || timeEl?.textContent || '',
+                    dateStr,
                     location,
                     imageUrl: img?.src || null,
                 };
-            }).filter(e => e.title && e.detailUrl);
+            }).filter((e): e is NonNullable<typeof e> => e !== null && !!e.title && !!e.detailUrl);
         });
     }
 
