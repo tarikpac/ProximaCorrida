@@ -168,19 +168,33 @@ export class Race83Provider implements ProviderScraper {
                     break; // We've hit the button, stop looking
                 }
 
+                // Skip lines that contain navigation words
+                if (nextLine.toUpperCase().includes('INSCRIÇÃO')) continue;
+
+                // Valid Brazilian state codes for Race83 (Nordeste focus)
+                const validStates = ['PB', 'PE', 'RN', 'CE', 'BA', 'AL', 'SE', 'MA', 'PI',
+                    'SP', 'RJ', 'MG', 'ES', 'SC', 'PR', 'RS', 'GO', 'DF'];
+
                 // Check if it's a location (pattern: CITY - ST)
-                const locationMatch = nextLine.match(/^(.+)\s*-\s*([A-Z]{2})$/i);
-                if (locationMatch && !title) {
-                    // This might be title if no title yet
-                    title = nextLine;
-                } else if (locationMatch && title) {
-                    // This is location
-                    location = nextLine;
+                const locationMatch = nextLine.match(/^(.+?)\s*[-–]\s*([A-Z]{2})\s*$/i);
+                if (locationMatch) {
+                    const potentialState = locationMatch[2].toUpperCase();
+                    // Only accept if the state is valid AND the city part doesn't contain INSCREVA
+                    if (validStates.includes(potentialState) &&
+                        !locationMatch[1].toUpperCase().includes('INSCREVA')) {
+                        if (!title) {
+                            // This might be title if no title yet
+                            title = nextLine;
+                        } else {
+                            // This is location
+                            location = nextLine;
+                        }
+                    }
                 } else if (!title && nextLine.length > 5 && !nextLine.match(/^\d/)) {
                     // This is the title
                     title = nextLine;
-                } else if (title && !location) {
-                    // This might be location
+                } else if (title && !location && nextLine.length > 3) {
+                    // This might be location if it follows the pattern
                     location = nextLine;
                 }
             }
@@ -329,11 +343,27 @@ export class Race83Provider implements ProviderScraper {
             let finalCity = details.city;
             let finalState = details.state;
 
+            // Valid Brazilian state codes
+            const validStates = ['PB', 'PE', 'RN', 'CE', 'BA', 'AL', 'SE', 'MA', 'PI',
+                'SP', 'RJ', 'MG', 'ES', 'SC', 'PR', 'RS', 'GO', 'DF',
+                'AC', 'AM', 'AP', 'MT', 'MS', 'PA', 'RO', 'RR', 'TO'];
+
+            // Validate that the state from details is valid and not from INSCREVA-SE
+            if (finalState && !validStates.includes(finalState)) {
+                finalState = '';
+            }
+
             if (!finalState && rawEvent.location) {
-                const locMatch = rawEvent.location.match(/(.+?)\s*[-–]\s*([A-Z]{2})\s*$/i);
-                if (locMatch) {
-                    if (!finalCity) finalCity = locMatch[1].trim();
-                    finalState = locMatch[2].toUpperCase();
+                // Don't parse if location contains INSCREVA
+                if (!rawEvent.location.toUpperCase().includes('INSCREVA')) {
+                    const locMatch = rawEvent.location.match(/(.+?)\s*[-–]\s*([A-Z]{2})\s*$/i);
+                    if (locMatch) {
+                        const potentialState = locMatch[2].toUpperCase();
+                        if (validStates.includes(potentialState)) {
+                            if (!finalCity) finalCity = locMatch[1].trim();
+                            finalState = potentialState;
+                        }
+                    }
                 }
             }
 
