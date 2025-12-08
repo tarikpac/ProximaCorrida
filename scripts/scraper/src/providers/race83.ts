@@ -118,77 +118,117 @@ export class Race83Provider implements ProviderScraper {
     }
 
     private async extractEventCards(page: Page): Promise<RawEventCard[]> {
-        // Race83 structure: Each event has an image, date text, title, location, and INSCREVA-SE button
-        return page.evaluate(() => {
-            const events: Array<{
-                title: string;
-                detailUrl: string;
-                dateStr: string;
-                location: string;
-                imageUrl: string | null;
-            }> = [];
-            const seen = new Set<string>();
+        // Race83 structure: Events are shown as blocks with date, title, location, and INSCREVA-SE button
+        // The structure from debug shows patterns like:
+        // DD/MM/YYYY
+        // EVENT TITLE
+        // CITY - ST
+        // INSCREVA-SE
 
-            // Find all INSCREVA-SE buttons which link to event pages
-            const buttons = document.querySelectorAll('a, button');
-            buttons.forEach((btn) => {
-                const text = btn.textContent?.trim().toUpperCase() || '';
-                if (!text.includes('INSCREVA') && !text.includes('INSCREV')) return;
+        // Get all page text and parse it
+        const pageData = await page.evaluate(() => {
+            const bodyText = document.body.innerText;
 
-                const anchor = btn.tagName === 'A'
-                    ? btn as HTMLAnchorElement
-                    : btn.closest('a') as HTMLAnchorElement;
+            // Get all INSCREVA-SE links
+            const inscrevaLinks: Array<{ href: string, text: string }> = [];
+            document.querySelectorAll('a').forEach((a) => {
+                const text = a.textContent?.trim().toUpperCase() || '';
+                if (text.includes('INSCREVA') && a.href.includes('race83.com.br')) {
+                    inscrevaLinks.push({ href: a.href, text: text });
+                }
+            });
 
-                if (!anchor?.href) return;
-                if (!anchor.href.includes('race83.com.br')) return;
-                if (seen.has(anchor.href)) return;
-                seen.add(anchor.href);
+            return { bodyText, inscrevaLinks };
+        });
 
-                // Find the parent container
-                let container = anchor.closest('div, article, section, li');
-                if (!container) container = anchor.parentElement;
+        const events: RawEventCard[] = [];
 
-                // Find event info - look for siblings or parent content
-                const allText = container?.textContent || '';
+        // Parse events from body text using pattern matching
+        // Pattern: DD/MM/YYYY\n\nTITLE\n\n CITY - ST\n\nINSCREVA-SE
+        const lines = pageData.bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
-                // Extract date (DD/MM/YYYY pattern)
-                const dateMatch = allText.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
-                const dateStr = dateMatch ? dateMatch[1] : '';
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
 
-                // Find image
-                const img = container?.querySelector('img') as HTMLImageElement;
+            // Look for date pattern
+            const dateMatch = line.match(/^(\d{1,2}\/\d{1,2}\/\d{4})$/);
+            if (!dateMatch) continue;
 
-                // Extract title - usually the longest meaningful text
-                const textElements = container?.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, div') || [];
-                let title = '';
-                textElements.forEach((el) => {
-                    const t = el.textContent?.trim() || '';
-                    // Title should be longer than 10 chars, not a date, not "INSCREVA-SE"
-                    if (t.length > 10 && t.length < 100 &&
-                        !t.match(/^\d{1,2}\/\d{1,2}/) &&
-                        !t.toUpperCase().includes('INSCREVA') &&
-                        t.length > title.length) {
-                        title = t;
+            const dateStr = dateMatch[1];
+
+            // Next non-empty lines should be: title, location, INSCREVA-SE
+            let title = '';
+            let location = '';
+
+            for (let j = i + 1; j < Math.min(i + 6, lines.length); j++) {
+                const nextLine = lines[j];
+
+                if (nextLine.toUpperCase().includes('INSCREVA')) {
+                    break; // We've hit the button, stop looking
+                }
+
+                // Check if it's a location (pattern: CITY - ST)
+                const locationMatch = nextLine.match(/^(.+)\s*-\s*([A-Z]{2})$/i);
+                if (locationMatch && !title) {
+                    // This might be title if no title yet
+                    title = nextLine;
+                } else if (locationMatch && title) {
+                    // This is location
+                    location = nextLine;
+                } else if (!title && nextLine.length > 5 && !nextLine.match(/^\d/)) {
+                    // This is the title
+                    title = nextLine;
+                } else if (title && !location) {
+                    // This might be location
+                    location = nextLine;
+                }
+            }
+
+            if (title && title.length > 5) {
+                // Find matching INSCREVA-SE link
+                const eventSlug = this.slugify(title);
+                let detailUrl = '';
+
+                for (const link of pageData.inscrevaLinks) {
+                    // Match by title similarity in URL
+                    const urlLower = link.href.toLowerCase();
+                    const titleLower = title.toLowerCase();
+                    const titleWords = titleLower.split(/\s+/).filter(w => w.length > 3);
+
+                    // Check if URL contains key words from title
+                    const matches = titleWords.filter(w => urlLower.includes(w.replace(/[^a-z]/g, '')));
+                    if (matches.length >= 2 || (titleWords.length === 1 && matches.length === 1)) {
+                        detailUrl = link.href.replace('/login/', '/evento/');
+                        break;
                     }
-                });
+                }
 
-                // Skip if no meaningful title
-                if (!title || title.length < 5) return;
-
-                // Convert login URL to evento URL
-                const detailUrl = anchor.href.replace('/login/', '/evento/');
+                // Fallback: create URL from title
+                if (!detailUrl) {
+                    detailUrl = `https://www.race83.com.br/evento/2025/corrida-de-rua/${eventSlug}`;
+                }
 
                 events.push({
                     title,
                     detailUrl,
                     dateStr,
-                    location: '',
-                    imageUrl: img?.src || null,
+                    location,
+                    imageUrl: null,
                 });
-            });
+            }
+        }
 
-            return events;
-        });
+        return events;
+    }
+
+    private slugify(text: string): string {
+        return text
+            .toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove accents
+            .replace(/[^a-z0-9\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .trim();
     }
 
     private async processEventDetail(

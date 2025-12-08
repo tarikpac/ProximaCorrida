@@ -75,7 +75,8 @@ export class ZeniteProvider implements ProviderScraper {
 
             // Wait for event cards to load
             try {
-                await page.waitForSelector('.produto, .eventos', { timeout: options.detailTimeoutMs });
+                await page.waitForTimeout(3000);
+                await page.waitForSelector('.product-grid, .product-title, a', { timeout: options.detailTimeoutMs });
             } catch {
                 providerLog(PROVIDER_NAME, 'No events found or timeout', 'warn');
                 await closePage(page);
@@ -123,24 +124,73 @@ export class ZeniteProvider implements ProviderScraper {
     }
 
     private async extractEventCards(page: Page): Promise<RawEventCard[]> {
-        return page.$$eval('.produto, .col-md-3 .thumbnail', (cards) => {
-            return cards.map((card) => {
-                const anchor = card.querySelector('a') as HTMLAnchorElement;
-                const img = card.querySelector('img') as HTMLImageElement;
-                const titleEl = card.querySelector('.caption h4 a, h4 a, .title a') as HTMLAnchorElement;
-                const dateEl = card.querySelector('.caption p, p') as HTMLElement;
+        // Zenite uses product-grid and product-title classes
+        // Events are listed as: "EVENT TITLE\n" format
 
-                const title = titleEl?.textContent?.trim() || anchor?.textContent?.trim() || '';
-                const detailUrl = titleEl?.href || anchor?.href || '';
-
-                return {
-                    title,
-                    detailUrl,
-                    dateStr: dateEl?.textContent?.trim() || '',
-                    imageUrl: img?.src || null,
-                };
-            }).filter(e => e.title && e.detailUrl && e.detailUrl.includes('zeniteesportes.com'));
+        // Try to extract from product elements first
+        const fromProducts = await page.$$eval('.product-grid a, .product-title a, a[href*="zeniteesportes.com/"]', (links) => {
+            const seen = new Set<string>();
+            return Array.from(links)
+                .filter((a) => {
+                    const href = (a as HTMLAnchorElement).href;
+                    // Skip navigation/menu links
+                    if (!href.includes('zeniteesportes.com/')) return false;
+                    if (href.includes('/proximos-eventos') || href.includes('/resultados')) return false;
+                    if (href.includes('/sobre') || href.includes('/blogs')) return false;
+                    if (href.includes('/minha-conta')) return false;
+                    if (seen.has(href)) return false;
+                    seen.add(href);
+                    return true;
+                })
+                .map((a) => {
+                    const anchor = a as HTMLAnchorElement;
+                    const title = anchor.textContent?.trim() || '';
+                    return {
+                        title,
+                        detailUrl: anchor.href,
+                        dateStr: '',
+                        imageUrl: null,
+                    };
+                })
+                .filter(e => e.title && e.title.length > 5 && !e.title.toUpperCase().includes('MENU'));
         });
+
+        if (fromProducts.length > 0) {
+            return fromProducts;
+        }
+
+        // Fallback: Parse from page text
+        const pageData = await page.evaluate(() => {
+            const bodyText = document.body.innerText;
+            const links: Array<{ href: string, text: string }> = [];
+            document.querySelectorAll('a').forEach((a) => {
+                if (a.href.includes('zeniteesportes.com/') &&
+                    !a.href.includes('/proximos-eventos') &&
+                    !a.href.includes('/resultados')) {
+                    links.push({ href: a.href, text: a.textContent?.trim() || '' });
+                }
+            });
+            return { bodyText, links };
+        });
+
+        const events: RawEventCard[] = [];
+        const seen = new Set<string>();
+
+        for (const link of pageData.links) {
+            if (seen.has(link.href)) continue;
+            if (link.text.length < 5) continue;
+            if (link.text.toUpperCase().includes('MENU')) continue;
+
+            seen.add(link.href);
+            events.push({
+                title: link.text,
+                detailUrl: link.href,
+                dateStr: '',
+                imageUrl: null,
+            });
+        }
+
+        return events;
     }
 
     private async processEventDetail(

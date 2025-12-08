@@ -125,33 +125,120 @@ export class CorreParaibaProvider implements ProviderScraper {
     }
 
     private async extractEventCards(page: Page): Promise<RawEventCard[]> {
-        return page.$$eval('a[href*="corrida"], a[href*="corrida-"]', (links) => {
-            const seen = new Set<string>();
-            return links.map((link) => {
-                const anchor = link as HTMLAnchorElement;
+        // Debug showed classes: tg-listing-card-title, tg-destination-item
+        // Events format: DATE\nTITLE\nLOCATION
 
-                // Skip if not a detail page link or already seen
-                if (!anchor.href.includes('corrida') || anchor.href.includes('/eventos')) {
-                    return null;
+        // First try to find event items with TG classes
+        const fromTgItems = await page.$$eval('.tg-destination-item, [class*="tg-listing"]', (items) => {
+            const events: Array<{ title: string, detailUrl: string, imageUrl: string | null }> = [];
+
+            items.forEach((item) => {
+                const anchor = item.querySelector('a') as HTMLAnchorElement;
+                const titleEl = item.querySelector('.tg-listing-card-title, [class*="card-title"]');
+                const img = item.querySelector('img') as HTMLImageElement;
+
+                const title = titleEl?.textContent?.trim() || anchor?.textContent?.trim() || '';
+                const detailUrl = anchor?.href || '';
+
+                if (title && title.length > 5 && detailUrl.includes('correparaiba.com.br')) {
+                    events.push({
+                        title,
+                        detailUrl,
+                        imageUrl: img?.src || null,
+                    });
                 }
-                if (seen.has(anchor.href)) return null;
-                seen.add(anchor.href);
+            });
 
-                const img = anchor.querySelector('img') as HTMLImageElement;
-                const title = anchor.textContent?.trim() || '';
-
-                // Skip navigation links
-                if (title.length < 5 || title.toUpperCase() === 'EVENTOS') {
-                    return null;
-                }
-
-                return {
-                    title,
-                    detailUrl: anchor.href,
-                    imageUrl: img?.src || null,
-                };
-            }).filter((e): e is RawEventCard => e !== null && e.detailUrl.includes('correparaiba.com.br'));
+            return events;
         });
+
+        if (fromTgItems.length > 0) {
+            return fromTgItems;
+        }
+
+        // Fallback: Parse from page text - events appear as:
+        // "DD de MÊS de YYYY" 
+        // "TITLE"
+        // "CITY - ST"
+        const pageData = await page.evaluate(() => {
+            const bodyText = document.body.innerText;
+            const links: Array<{ href: string, text: string }> = [];
+
+            document.querySelectorAll('a').forEach((a) => {
+                if (a.href.includes('correparaiba.com.br/') &&
+                    !a.href.endsWith('/eventos') &&
+                    !a.href.includes('#') &&
+                    a.href !== 'https://correparaiba.com.br/') {
+                    links.push({ href: a.href, text: a.textContent?.trim() || '' });
+                }
+            });
+
+            return { bodyText, links };
+        });
+
+        const events: RawEventCard[] = [];
+        const seen = new Set<string>();
+
+        // Parse events from body text
+        const lines = pageData.bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            // Look for date pattern: "DD de MÊS de YYYY"
+            const dateMatch = line.match(/^\d{1,2}\s+de\s+\w+\s+de\s+\d{4}$/i);
+            if (!dateMatch) continue;
+
+            // Next lines should be title and location
+            let title = '';
+            let location = '';
+
+            for (let j = i + 1; j < Math.min(i + 4, lines.length); j++) {
+                const nextLine = lines[j];
+
+                // Skip if it's another date
+                if (nextLine.match(/^\d{1,2}\s+de\s+/i)) break;
+
+                // Check if it's a location (CITY - ST pattern)
+                const locationMatch = nextLine.match(/^(.+)\s*[-–]\s*([A-Z]{2})$/);
+                if (locationMatch) {
+                    location = nextLine;
+                    break;
+                } else if (!title && nextLine.length > 5) {
+                    title = nextLine;
+                }
+            }
+
+            if (title && title.length > 5) {
+                // Find matching link
+                let detailUrl = '';
+                const titleLower = title.toLowerCase();
+
+                for (const link of pageData.links) {
+                    if (seen.has(link.href)) continue;
+
+                    const urlLower = link.href.toLowerCase();
+                    const titleWords = titleLower.split(/\s+/).filter(w => w.length > 3);
+                    const matchCount = titleWords.filter(w => urlLower.includes(w.replace(/[^a-z]/g, ''))).length;
+
+                    if (matchCount >= 2) {
+                        detailUrl = link.href;
+                        seen.add(link.href);
+                        break;
+                    }
+                }
+
+                if (detailUrl) {
+                    events.push({
+                        title,
+                        detailUrl,
+                        imageUrl: null,
+                    });
+                }
+            }
+        }
+
+        return events;
     }
 
     private async processEventDetail(

@@ -23,35 +23,35 @@ const PROVIDER_PRIORITY = 1; // Highest priority
 // Base URL for running events listing
 const LISTING_URL = 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Todo-o-Brasil/Todas-as-cidades/0,00/0,00/false/?termo=&periodo=0&mes=&inicio=&fim=&ordenacao=2&pais=';
 
-// State-specific listing URLs
+// State-specific listing URLs - use state codes (PB, not Paraiba)
 const STATE_LISTING_URLS: Record<string, string> = {
-    AC: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Acre/Todas-as-cidades/0,00/0,00/false/',
-    AL: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Alagoas/Todas-as-cidades/0,00/0,00/false/',
-    AP: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Amapa/Todas-as-cidades/0,00/0,00/false/',
-    AM: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Amazonas/Todas-as-cidades/0,00/0,00/false/',
-    BA: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Bahia/Todas-as-cidades/0,00/0,00/false/',
-    CE: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Ceara/Todas-as-cidades/0,00/0,00/false/',
-    DF: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Distrito-Federal/Todas-as-cidades/0,00/0,00/false/',
-    ES: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Espirito-Santo/Todas-as-cidades/0,00/0,00/false/',
-    GO: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Goias/Todas-as-cidades/0,00/0,00/false/',
-    MA: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Maranhao/Todas-as-cidades/0,00/0,00/false/',
-    MT: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Mato-Grosso/Todas-as-cidades/0,00/0,00/false/',
-    MS: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Mato-Grosso-do-Sul/Todas-as-cidades/0,00/0,00/false/',
-    MG: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Minas-Gerais/Todas-as-cidades/0,00/0,00/false/',
-    PA: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Para/Todas-as-cidades/0,00/0,00/false/',
-    PB: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Paraiba/Todas-as-cidades/0,00/0,00/false/',
-    PR: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Parana/Todas-as-cidades/0,00/0,00/false/',
-    PE: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Pernambuco/Todas-as-cidades/0,00/0,00/false/',
-    PI: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Piaui/Todas-as-cidades/0,00/0,00/false/',
-    RJ: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Rio-de-Janeiro/Todas-as-cidades/0,00/0,00/false/',
-    RN: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Rio-Grande-do-Norte/Todas-as-cidades/0,00/0,00/false/',
-    RS: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Rio-Grande-do-Sul/Todas-as-cidades/0,00/0,00/false/',
-    RO: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Rondonia/Todas-as-cidades/0,00/0,00/false/',
-    RR: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Roraima/Todas-as-cidades/0,00/0,00/false/',
-    SC: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Santa-Catarina/Todas-as-cidades/0,00/0,00/false/',
-    SP: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Sao-Paulo/Todas-as-cidades/0,00/0,00/false/',
-    SE: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Sergipe/Todas-as-cidades/0,00/0,00/false/',
-    TO: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua/Tocantins/Todas-as-cidades/0,00/0,00/false/',
+    AC: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/AC/Todas-as-cidades/0,00/0,00/false/',
+    AL: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/AL/Todas-as-cidades/0,00/0,00/false/',
+    AP: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/AP/Todas-as-cidades/0,00/0,00/false/',
+    AM: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/AM/Todas-as-cidades/0,00/0,00/false/',
+    BA: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/BA/Todas-as-cidades/0,00/0,00/false/',
+    CE: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/CE/Todas-as-cidades/0,00/0,00/false/',
+    DF: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/DF/Todas-as-cidades/0,00/0,00/false/',
+    ES: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/ES/Todas-as-cidades/0,00/0,00/false/',
+    GO: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/GO/Todas-as-cidades/0,00/0,00/false/',
+    MA: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/MA/Todas-as-cidades/0,00/0,00/false/',
+    MT: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/MT/Todas-as-cidades/0,00/0,00/false/',
+    MS: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/MS/Todas-as-cidades/0,00/0,00/false/',
+    MG: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/MG/Todas-as-cidades/0,00/0,00/false/',
+    PA: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/PA/Todas-as-cidades/0,00/0,00/false/',
+    PB: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/PB/Todas-as-cidades/0,00/0,00/false/',
+    PR: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/PR/Todas-as-cidades/0,00/0,00/false/',
+    PE: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/PE/Todas-as-cidades/0,00/0,00/false/',
+    PI: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/PI/Todas-as-cidades/0,00/0,00/false/',
+    RJ: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/RJ/Todas-as-cidades/0,00/0,00/false/',
+    RN: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/RN/Todas-as-cidades/0,00/0,00/false/',
+    RS: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/RS/Todas-as-cidades/0,00/0,00/false/',
+    RO: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/RO/Todas-as-cidades/0,00/0,00/false/',
+    RR: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/RR/Todas-as-cidades/0,00/0,00/false/',
+    SC: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/SC/Todas-as-cidades/0,00/0,00/false/',
+    SP: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/SP/Todas-as-cidades/0,00/0,00/false/',
+    SE: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/SE/Todas-as-cidades/0,00/0,00/false/',
+    TO: 'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/TO/Todas-as-cidades/0,00/0,00/false/',
 };
 
 interface RawEventCard {
@@ -214,39 +214,37 @@ export class TicketSportsProvider implements ProviderScraper {
     }
 
     private async extractEventCards(page: Page): Promise<RawEventCard[]> {
-        // Wait a bit for dynamic content
-        await page.waitForTimeout(2000);
+        // Wait for dynamic content to load
+        await page.waitForTimeout(3000);
 
-        return page.$$eval('div.card.card-flex, div.card, a.card, [class*="card-evento"]', (cards) => {
+        // Use the correct classes discovered from debug investigation:
+        // card-evento, titulo-card-evento, data-card-evento, local-card-evento
+        return page.$$eval('.card-evento, div[class*="card-evento"], a[class*="card"]', (cards) => {
             return cards.map((card) => {
-                // Get anchor - might be the card itself or inside it
-                const anchor = card.tagName === 'A'
-                    ? card as HTMLAnchorElement
-                    : card.querySelector('a') as HTMLAnchorElement;
-
-                if (!anchor?.href) return null;
-
-                const img = card.querySelector('img') as HTMLImageElement;
-
-                // Try multiple selectors for title
-                const titleEl = card.querySelector('h2, h3, h4, .card-title, [class*="title"]');
-                let title = titleEl?.textContent?.trim() || '';
-
-                // Fallback: get all text and extract first meaningful line
-                if (!title) {
-                    const texts = Array.from(card.querySelectorAll('div, span, p'))
-                        .map(el => el.textContent?.trim())
-                        .filter(t => t && t.length > 5 && t.length < 100);
-                    title = texts[0] || '';
+                // Get anchor - the card itself or first link inside
+                let anchor: HTMLAnchorElement | null = null;
+                if (card.tagName === 'A') {
+                    anchor = card as HTMLAnchorElement;
+                } else {
+                    anchor = card.querySelector('a') as HTMLAnchorElement;
                 }
 
-                // Extract date - look for date patterns
-                const allText = card.textContent || '';
-                const dateMatch = allText.match(/(\d{1,2}\/\d{1,2}\/\d{4}|\d{1,2}\s+(?:jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[^\d]*\d{4})/i);
-                const dateStr = dateMatch ? dateMatch[1] : '';
+                if (!anchor?.href) return null;
+                if (!anchor.href.includes('ticketsports.com.br')) return null;
 
-                // Extract location
-                const locationEl = card.querySelector('[class*="location"], [class*="city"]');
+                // Get image
+                const img = card.querySelector('img.thumb-event, img[class*="thumb"], img') as HTMLImageElement;
+
+                // Get title using specific class or fallback
+                const titleEl = card.querySelector('.titulo-card-evento, [class*="titulo-card"], h2, h3, h4');
+                const title = titleEl?.textContent?.trim() || '';
+
+                // Get date using specific class
+                const dateEl = card.querySelector('.data-card-evento, [class*="data-card"]');
+                const dateStr = dateEl?.textContent?.trim() || '';
+
+                // Get location using specific class
+                const locationEl = card.querySelector('.local-card-evento, [class*="local-card"]');
                 const location = locationEl?.textContent?.trim() || '';
 
                 return {
@@ -256,7 +254,12 @@ export class TicketSportsProvider implements ProviderScraper {
                     location,
                     imageUrl: img?.src || null,
                 };
-            }).filter((e): e is NonNullable<typeof e> => e !== null && !!e.title && !!e.detailUrl);
+            }).filter((e): e is NonNullable<typeof e> =>
+                e !== null &&
+                !!e.title &&
+                e.title.length > 3 &&
+                !!e.detailUrl
+            );
         });
     }
 
