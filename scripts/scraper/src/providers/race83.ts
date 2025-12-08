@@ -77,8 +77,9 @@ export class Race83Provider implements ProviderScraper {
             // Wait for event cards to load
             try {
                 // Wait for page content to load
-                await page.waitForTimeout(3000);
-                await page.waitForSelector('img, a[href*="evento"], button', { timeout: options.detailTimeoutMs });
+                await page.waitForTimeout(5000);
+                // Just check that the page loaded - we'll extract from text
+                await page.waitForLoadState('domcontentloaded');
             } catch {
                 providerLog(PROVIDER_NAME, 'No events found or timeout', 'warn');
                 await closePage(page);

@@ -124,71 +124,73 @@ export class ZeniteProvider implements ProviderScraper {
     }
 
     private async extractEventCards(page: Page): Promise<RawEventCard[]> {
-        // Zenite uses product-grid and product-title classes
-        // Events are listed as: "EVENT TITLE\n" format
+        // Zenite events are listed as links to detail pages
+        // Known event patterns from debug:
+        // "5ª CORRIDA CONTRA O CÂNCER - 2026", "CAMPINA BIG RUN 2025", etc.
 
-        // Try to extract from product elements first
-        const fromProducts = await page.$$eval('.product-grid a, .product-title a, a[href*="zeniteesportes.com/"]', (links) => {
+        // Words that indicate navigation/menu links to skip
+        const skipWords = [
+            'WHATSAPP', 'CADASTRE', 'ACESSAR', 'MENU', 'HOME', 'RESULTADOS',
+            'SOBRE', 'BLOGS', 'MINHA CONTA', 'CONTATO', 'CRONOMETRAGEM',
+            'CONSULTORIA', 'PRÓXIMOS EVENTOS', 'POLÍTICA', 'CARRINHO'
+        ];
+
+        const events = await page.evaluate((skipWords) => {
+            const results: Array<{ title: string, detailUrl: string, dateStr: string, imageUrl: string | null }> = [];
             const seen = new Set<string>();
-            return Array.from(links)
-                .filter((a) => {
-                    const href = (a as HTMLAnchorElement).href;
-                    // Skip navigation/menu links
-                    if (!href.includes('zeniteesportes.com/')) return false;
-                    if (href.includes('/proximos-eventos') || href.includes('/resultados')) return false;
-                    if (href.includes('/sobre') || href.includes('/blogs')) return false;
-                    if (href.includes('/minha-conta')) return false;
-                    if (seen.has(href)) return false;
-                    seen.add(href);
-                    return true;
-                })
-                .map((a) => {
-                    const anchor = a as HTMLAnchorElement;
-                    const title = anchor.textContent?.trim() || '';
-                    return {
-                        title,
-                        detailUrl: anchor.href,
-                        dateStr: '',
-                        imageUrl: null,
-                    };
-                })
-                .filter(e => e.title && e.title.length > 5 && !e.title.toUpperCase().includes('MENU'));
-        });
 
-        if (fromProducts.length > 0) {
-            return fromProducts;
-        }
-
-        // Fallback: Parse from page text
-        const pageData = await page.evaluate(() => {
-            const bodyText = document.body.innerText;
-            const links: Array<{ href: string, text: string }> = [];
             document.querySelectorAll('a').forEach((a) => {
-                if (a.href.includes('zeniteesportes.com/') &&
-                    !a.href.includes('/proximos-eventos') &&
-                    !a.href.includes('/resultados')) {
-                    links.push({ href: a.href, text: a.textContent?.trim() || '' });
+                const href = a.href;
+                const text = a.textContent?.trim() || '';
+
+                // Must be zenite link
+                if (!href.includes('zeniteesportes.com/')) return;
+
+                // Skip navigation pages
+                if (href.includes('/proximos-eventos')) return;
+                if (href.includes('/resultados')) return;
+                if (href.includes('/sobre')) return;
+                if (href.includes('/blogs')) return;
+                if (href.includes('/minha-conta')) return;
+                if (href.includes('/home')) return;
+                if (href.includes('/contato')) return;
+                if (href.includes('/cronometragem')) return;
+                if (href.includes('/consultoria')) return;
+                if (href.includes('/promocoes')) return;
+
+                // Skip if already seen
+                if (seen.has(href)) return;
+
+                // Skip short titles
+                if (text.length < 10) return;
+
+                // Skip known navigation words
+                const textUpper = text.toUpperCase();
+                for (const skip of skipWords) {
+                    if (textUpper.includes(skip)) return;
                 }
+
+                // Skip if contains @ (email) or phone patterns
+                if (text.includes('@')) return;
+                if (text.match(/\d{2}\s*\d{4,5}/)) return;  // Phone number pattern
+
+                // Event titles typically contain "CORRIDA", "CIRCUITO", "MARATONA", etc.
+                const eventKeywords = ['CORRIDA', 'CIRCUITO', 'MARATONA', 'RUN', 'TRAIL', 'PROVA'];
+                const isLikelyEvent = eventKeywords.some(kw => textUpper.includes(kw));
+
+                if (!isLikelyEvent) return;
+
+                seen.add(href);
+                results.push({
+                    title: text,
+                    detailUrl: href,
+                    dateStr: '',
+                    imageUrl: null,
+                });
             });
-            return { bodyText, links };
-        });
 
-        const events: RawEventCard[] = [];
-        const seen = new Set<string>();
-
-        for (const link of pageData.links) {
-            if (seen.has(link.href)) continue;
-            if (link.text.length < 5) continue;
-            if (link.text.toUpperCase().includes('MENU')) continue;
-
-            seen.add(link.href);
-            events.push({
-                title: link.text,
-                detailUrl: link.href,
-                dateStr: '',
-                imageUrl: null,
-            });
-        }
+            return results;
+        }, skipWords);
 
         return events;
     }

@@ -169,7 +169,8 @@ export class TicketSportsProvider implements ProviderScraper {
 
             // Wait for event cards to load
             try {
-                await page.waitForSelector('.card, a.card', { timeout: options.detailTimeoutMs });
+                await page.waitForTimeout(3000); // Wait for dynamic content
+                await page.waitForSelector('.card-evento, div[class*="card-evento"]', { timeout: options.detailTimeoutMs });
             } catch {
                 providerLog(PROVIDER_NAME, 'No events found or timeout', 'warn');
                 await closePage(page);
