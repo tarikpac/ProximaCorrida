@@ -18,7 +18,6 @@ import {
     zeniteProvider,
     correParaibaProvider,
     race83Provider,
-    corridasEMaratonasProvider,
 } from './providers';
 import { deduplicateEvents, logDeduplicationSummary, DeduplicationResult } from './utils/deduplication';
 import { emptyResult, mergeResults } from './providers/base';
@@ -71,8 +70,7 @@ const PROVIDER_REGISTRY: ProviderScraper[] = [
     // Regional providers (Nordeste only)
     correParaibaProvider,              // Priority 6
     race83Provider,                    // Priority 7
-    // Legacy provider (fallback)
-    corridasEMaratonasProvider,        // Priority 8 (legacy)
+    // Note: corridasemaratonas was deprecated and removed
 ];
 
 /**

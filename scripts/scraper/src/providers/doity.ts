@@ -114,7 +114,10 @@ export class DoityProvider implements ProviderScraper {
     }
 
     private async extractEventCards(page: Page): Promise<RawEventCard[]> {
-        return page.$$eval('a.wrapper__event-card, a[class*="event-card"]', (links) => {
+        // Keywords that identify running events
+        const runningKeywords = ['corrida', 'maratona', 'meia maratona', 'run', 'running', 'trail', '5k', '10k', '21k', '42k', 'km'];
+
+        const allCards = await page.$$eval('a.wrapper__event-card, a[class*="event-card"]', (links) => {
             return links.map((link) => {
                 const anchor = link as HTMLAnchorElement;
                 const img = anchor.querySelector('img') as HTMLImageElement;
@@ -150,6 +153,12 @@ export class DoityProvider implements ProviderScraper {
                     imageUrl: img?.src || null,
                 };
             }).filter(e => e.title && e.detailUrl && e.detailUrl.includes('doity.com.br'));
+        });
+
+        // Filter only running-related events
+        return allCards.filter(card => {
+            const lowerTitle = card.title.toLowerCase();
+            return runningKeywords.some(kw => lowerTitle.includes(kw));
         });
     }
 
@@ -203,8 +212,8 @@ export class DoityProvider implements ProviderScraper {
                 const ogImage = document.querySelector('meta[property="og:image"]') as HTMLMetaElement;
                 const imageUrl = logoImg?.src || ogImage?.content || null;
 
-                // Find registration link and price
-                const ticketBtn = document.querySelector('a.sub-button, a[href*="inscricao"], a:has-text("Ver ingressos")') as HTMLAnchorElement;
+                // Find registration link and price (note: :has-text() is not valid for querySelector)
+                const ticketBtn = document.querySelector('a.sub-button, a[href*="inscricao"]') as HTMLAnchorElement;
                 const regUrl = ticketBtn?.href || window.location.href;
 
                 // Find price near ticket button

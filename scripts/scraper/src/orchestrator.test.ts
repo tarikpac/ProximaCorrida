@@ -191,11 +191,9 @@ describe('Orchestrator', () => {
     });
 
     describe('PROVIDER_REGISTRY', () => {
-        it('should contain the legacy provider', () => {
-            const legacyProvider = PROVIDER_REGISTRY.find(
-                p => p.getName() === 'corridasemaratonas'
-            );
-            expect(legacyProvider).toBeDefined();
+        it('should contain at least 7 providers', () => {
+            // After deprecating corridasemaratonas, we have 7 providers
+            expect(PROVIDER_REGISTRY.length).toBeGreaterThanOrEqual(7);
         });
 
         it('should have providers sorted by priority', () => {
@@ -203,6 +201,12 @@ describe('Orchestrator', () => {
                 expect(PROVIDER_REGISTRY[i].getPriority())
                     .toBeGreaterThanOrEqual(PROVIDER_REGISTRY[i - 1].getPriority());
             }
+        });
+
+        it('should include ticketsports as highest priority', () => {
+            const ticketsports = PROVIDER_REGISTRY.find(p => p.getName() === 'ticketsports');
+            expect(ticketsports).toBeDefined();
+            expect(ticketsports?.getPriority()).toBe(1);
         });
     });
 });
