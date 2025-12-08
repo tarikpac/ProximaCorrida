@@ -29,3 +29,6 @@ export interface ScraperOptions {
     stalenessDays: number;
     shouldLogDebug: boolean;
 }
+
+// Re-export provider interfaces
+export * from './provider';

@@ -1,5 +1,5 @@
-# GitHub Actions Workflow: ProximaCorrida Standalone Scraper
-# Runs daily at 06:00 UTC (03:00 BRT) to scrape events from corridasemaratonas.com.br
+# GitHub Actions Workflow: ProximaCorrida Multi-Provider Scraper
+# Runs daily at 06:00 UTC (03:00 BRT) to scrape events from multiple providers
 # This is the standalone version that doesn't require the API to be running.
 # Push notifications are sent inline by calling the Lambda API.
 #
@@ -8,7 +8,7 @@
 # - DIRECT_URL: Direct PostgreSQL connection string (without pooler)
 # - API_BASE_URL: Lambda API Gateway URL (e.g., https://xxx.execute-api.sa-east-1.amazonaws.com)
 
-name: Standalone Scraper
+name: Multi-Provider Scraper
 
 on:
   # Daily execution at 06:00 UTC (03:00 BRT)
@@ -19,14 +19,23 @@ on:
   workflow_dispatch:
     inputs:
       state:
-        description: 'Optional: Single state to scrape (e.g., PB, SP)'
+        description: 'Optional: State filter (e.g., PB or PB,PE,RN)'
         required: false
         default: ''
+      provider:
+        description: 'Optional: Single provider to run (e.g., corridasemaratonas, ticketsports)'
+        required: false
+        default: ''
+      skip_legacy:
+        description: 'Skip legacy corridasemaratonas provider'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    timeout-minutes: 120  # 2 hours max for all 27 states
+    timeout-minutes: 120  # 2 hours max
 
     steps:
       - name: Checkout repository
@@ -51,7 +60,22 @@ jobs:
         working-directory: scripts/scraper
         run: npx playwright install chromium --with-deps
 
-      - name: Run Scraper
+      - name: Build CLI arguments
+        id: args
+        run: |
+          ARGS=""
+          if [ -n "${{ github.event.inputs.state }}" ]; then
+            ARGS="$ARGS --state=${{ github.event.inputs.state }}"
+          fi
+          if [ -n "${{ github.event.inputs.provider }}" ]; then
+            ARGS="$ARGS --provider=${{ github.event.inputs.provider }}"
+          fi
+          if [ "${{ github.event.inputs.skip_legacy }}" == "true" ]; then
+            ARGS="$ARGS --skip-legacy"
+          fi
+          echo "cli_args=$ARGS" >> $GITHUB_OUTPUT
+
+      - name: Run Multi-Provider Scraper
         working-directory: scripts/scraper
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -62,12 +86,7 @@ jobs:
           SCRAPER_EVENT_DELAY_MS: '500'
           SCRAPER_STALENESS_DAYS: '7'
           LOG_LEVEL: 'info'
-        run: |
-          if [ -n "${{ github.event.inputs.state }}" ]; then
-            npx ts-node src/main.ts --state=${{ github.event.inputs.state }}
-          else
-            npx ts-node src/main.ts
-          fi
+        run: npx ts-node src/main.ts ${{ steps.args.outputs.cli_args }}
 
       - name: Upload logs on failure
         if: failure()

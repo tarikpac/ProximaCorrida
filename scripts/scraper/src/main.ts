@@ -1,25 +1,34 @@
 /**
- * ProximaCorrida Standalone Scraper
+ * ProximaCorrida Multi-Provider Scraper
  * Main Entry Point
  * 
  * This script runs as a GitHub Actions cron job and:
- * 1. Scrapes all 27 Brazilian states from corridasemaratonas.com.br
- * 2. Upserts events directly to Supabase/Postgres
- * 3. Triggers push notifications for new events
+ * 1. Orchestrates multiple provider scrapers (or legacy-only mode)
+ * 2. Deduplicates events across providers
+ * 3. Upserts events directly to Supabase/Postgres
+ * 4. Triggers push notifications for new events
+ * 
+ * CLI Arguments:
+ *   --state=XX,YY    Filter by state(s)
+ *   --provider=NAME  Run only specific provider
+ *   --skip-legacy    Skip legacy corridasemaratonas provider
+ *   --legacy-only    Use legacy mode (bypass orchestrator)
  */
 
 import { chromium } from 'playwright';
 import { loadConfig, logConfigSummary, ScraperConfig } from './config';
-import { initDatabase, disconnectDatabase, upsertEvent, checkEventsFreshness } from './db';
-import { scrapeState, STATE_URLS } from './scraper';
+import { initDatabase, disconnectDatabase, upsertEvent } from './db';
 import { triggerNotification, NotificationPayload } from './notifications';
-import { ScraperOptions } from './interfaces';
+import { ProviderScraperOptions } from './interfaces';
+import { orchestrateProviders, parseOrchestratorArgs, OrchestratorResult } from './orchestrator';
 
 interface JobSummary {
-    totalStates: number;
-    totalProcessed: number;
-    totalSkipped: number;
+    mode: 'orchestrator' | 'legacy';
+    totalProviders: number;
+    totalEventsScraped: number;
+    duplicatesRemoved: number;
     totalNew: number;
+    totalUpdated: number;
     totalErrors: number;
     notificationsSent: number;
     notificationsFailed: number;
@@ -32,7 +41,22 @@ function log(message: string): void {
 
 async function main(): Promise<void> {
     const startTime = Date.now();
-    log('=== ProximaCorrida Scraper Started ===');
+    log('=== ProximaCorrida Multi-Provider Scraper Started ===');
+
+    // Parse CLI arguments
+    const cliArgs = parseOrchestratorArgs(process.argv);
+    const legacyOnly = process.argv.includes('--legacy-only');
+
+    log(`Mode: ${legacyOnly ? 'legacy' : 'orchestrator'}`);
+    if (cliArgs.stateFilter) {
+        log(`State filter: ${cliArgs.stateFilter.join(', ')}`);
+    }
+    if (cliArgs.providerFilter) {
+        log(`Provider filter: ${cliArgs.providerFilter}`);
+    }
+    if (cliArgs.skipLegacy) {
+        log('Skip legacy: enabled');
+    }
 
     // Load configuration
     let config: ScraperConfig;
@@ -74,85 +98,71 @@ async function main(): Promise<void> {
         },
     });
 
-    // Prepare scraper options
-    const scraperOptions: ScraperOptions = {
+    // Prepare orchestrator options
+    const options: ProviderScraperOptions = {
         detailTimeoutMs: config.detailTimeoutMs,
         regTimeoutMs: config.regTimeoutMs,
         eventDelayMs: config.eventDelayMs,
         stalenessDays: config.stalenessDays,
         shouldLogDebug: config.shouldLogDebug,
+        providerName: cliArgs.providerFilter,
+        skipLegacy: cliArgs.skipLegacy,
+        stateFilter: cliArgs.stateFilter,
     };
 
     // Summary counters
     const summary: JobSummary = {
-        totalStates: STATE_URLS.length,
-        totalProcessed: 0,
-        totalSkipped: 0,
+        mode: legacyOnly ? 'legacy' : 'orchestrator',
+        totalProviders: 0,
+        totalEventsScraped: 0,
+        duplicatesRemoved: 0,
         totalNew: 0,
+        totalUpdated: 0,
         totalErrors: 0,
         notificationsSent: 0,
         notificationsFailed: 0,
         durationMs: 0,
     };
 
-    // Check for single state filter (for testing)
-    const stateFilter = process.argv.find((arg) => arg.startsWith('--state='));
-    let statesToProcess = STATE_URLS;
+    try {
+        // Run orchestrator
+        log('\n=== Running Provider Orchestrator ===');
+        const orchestratorResult = await orchestrateProviders(context, options);
 
-    if (stateFilter) {
-        const filterValue = stateFilter.split('=')[1];
-        statesToProcess = STATE_URLS.filter((s) => s.state === filterValue);
-        if (statesToProcess.length === 0) {
-            log(`State filter "${filterValue}" matched no states. Available: ${STATE_URLS.map((s) => s.state).join(', ')}`);
-            await browser.close();
-            await disconnectDatabase();
-            process.exit(1);
-        }
-        log(`Filtering to state: ${filterValue}`);
-        summary.totalStates = statesToProcess.length;
-    }
+        summary.totalProviders = orchestratorResult.summary.totalProviders;
+        summary.totalEventsScraped = orchestratorResult.summary.totalEventsBeforeDedup;
+        summary.duplicatesRemoved = orchestratorResult.summary.duplicatesRemoved;
+        summary.totalErrors = orchestratorResult.providerResults
+            .reduce((sum, r) => sum + r.result.stats.errors, 0);
 
-    // Process each state
-    for (const stateConfig of statesToProcess) {
-        log(`\n--- Processing ${stateConfig.state} ---`);
+        // Upsert events and collect new ones for notification
+        log('\n=== Upserting Events to Database ===');
+        const newEvents: NotificationPayload[] = [];
 
-        try {
-            // Pre-fetch filter: get fresh URLs for this state
-            const rawEvents = await getAllSourceUrlsForState(context, stateConfig.url, scraperOptions.detailTimeoutMs);
-            const freshUrls = await checkEventsFreshness(rawEvents, config.stalenessDays);
-
-            if (config.shouldLogDebug) {
-                log(`Pre-fetch filter: ${freshUrls.size} fresh events will be skipped`);
-            }
-
-            // Scrape the state
-            const { events, counters } = await scrapeState(context, stateConfig, scraperOptions, freshUrls);
-
-            summary.totalProcessed += counters.processed;
-            summary.totalSkipped += counters.skipped;
-            summary.totalErrors += counters.errors;
-
-            // Upsert events and collect new ones for notification
-            const newEvents: NotificationPayload[] = [];
-
-            for (const event of events) {
-                try {
-                    const result = await upsertEvent(event);
-                    if (result.isNew) {
-                        summary.totalNew++;
-                        newEvents.push({
-                            eventId: result.eventId,
-                            eventTitle: event.title,
-                            eventState: event.state ?? 'BR',
-                        });
-                    }
-                } catch (err) {
-                    log(`Failed to upsert event ${event.title}: ${(err as Error).message}`);
-                    summary.totalErrors++;
+        for (const event of orchestratorResult.events) {
+            try {
+                const result = await upsertEvent(event);
+                if (result.isNew) {
+                    summary.totalNew++;
+                    newEvents.push({
+                        eventId: result.eventId,
+                        eventTitle: event.title,
+                        eventState: event.state ?? 'BR',
+                    });
+                } else {
+                    summary.totalUpdated++;
                 }
+            } catch (err) {
+                log(`Failed to upsert event ${event.title}: ${(err as Error).message}`);
+                summary.totalErrors++;
             }
+        }
 
-            // Trigger notifications for new events
+        log(`Upserted ${orchestratorResult.events.length} events (${summary.totalNew} new, ${summary.totalUpdated} updated)`);
+
+        // Trigger notifications for new events
+        if (newEvents.length > 0) {
+            log('\n=== Sending Notifications ===');
             for (const payload of newEvents) {
                 const success = await triggerNotification(config.apiBaseUrl, payload);
                 if (success) {
@@ -161,14 +171,12 @@ async function main(): Promise<void> {
                     summary.notificationsFailed++;
                 }
             }
-
-            log(
-                `[${stateConfig.state}] Summary: processed=${counters.processed}, skipped=${counters.skipped}, errors=${counters.errors}, new=${newEvents.length}`
-            );
-        } catch (error) {
-            log(`Failed to process state ${stateConfig.state}: ${(error as Error).message}`);
-            summary.totalErrors++;
+            log(`Notifications: ${summary.notificationsSent} sent, ${summary.notificationsFailed} failed`);
         }
+
+    } catch (error) {
+        log(`Orchestrator error: ${(error as Error).message}`);
+        summary.totalErrors++;
     }
 
     // Cleanup
@@ -184,10 +192,12 @@ async function main(): Promise<void> {
     const durationMinutes = (summary.durationMs / 60000).toFixed(2);
 
     log('\n=== JOB SUMMARY ===');
-    log(`States Processed: ${summary.totalStates}`);
-    log(`Events Processed: ${summary.totalProcessed}`);
-    log(`Events Skipped (fresh): ${summary.totalSkipped}`);
+    log(`Mode: ${summary.mode}`);
+    log(`Providers Executed: ${summary.totalProviders}`);
+    log(`Events Scraped: ${summary.totalEventsScraped}`);
+    log(`Duplicates Removed: ${summary.duplicatesRemoved}`);
     log(`New Events Created: ${summary.totalNew}`);
+    log(`Events Updated: ${summary.totalUpdated}`);
     log(`Errors: ${summary.totalErrors}`);
     log(`Notifications Sent: ${summary.notificationsSent}`);
     log(`Notifications Failed: ${summary.notificationsFailed}`);
@@ -195,50 +205,12 @@ async function main(): Promise<void> {
     log('===================');
 
     // Exit with error if too many errors
-    if (summary.totalErrors > summary.totalStates * 2) {
+    if (summary.totalErrors > 10) {
         log('Too many errors occurred. Exiting with error status.');
         process.exit(1);
     }
 
     log('=== Scraper Completed Successfully ===');
-}
-
-/**
- * Helper to get all source URLs for pre-fetch filter
- * This is a lightweight scrape just to get URLs
- */
-async function getAllSourceUrlsForState(
-    context: Awaited<ReturnType<typeof chromium.launch>>['newContext'] extends (...args: any[]) => Promise<infer R> ? R : never,
-    stateUrl: string,
-    timeoutMs: number
-): Promise<string[]> {
-    const page = await context.newPage();
-
-    try {
-        await page.goto(stateUrl, { timeout: timeoutMs * 2 });
-
-        try {
-            await page.waitForSelector('.table-row', { timeout: timeoutMs });
-        } catch {
-            await page.close();
-            return [];
-        }
-
-        const urls = await page.$$eval('.table-row', (rows) => {
-            return rows
-                .map((row) => {
-                    const titleLink = row.querySelector('td:nth-child(1) a') as HTMLAnchorElement;
-                    return titleLink?.href;
-                })
-                .filter((url): url is string => !!url && url.startsWith('http') && !url.includes('#N/A'));
-        });
-
-        await page.close();
-        return urls;
-    } catch {
-        await page.close();
-        return [];
-    }
 }
 
 // Run main
