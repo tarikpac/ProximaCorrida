@@ -245,40 +245,36 @@ export class TicketSportsProvider implements ProviderScraper {
         // Wait for dynamic content to load
         await page.waitForTimeout(3000);
 
-        // Use the correct classes discovered from debug investigation:
-        // card-evento, titulo-card-evento, data-card-evento, local-card-evento
-        return page.$$eval('.card-evento, div[class*="card-evento"], a[class*="card"]', (cards) => {
+        // Use specific selector for top-level card containers only
+        return page.$$eval('div.card-evento', (cards) => {
             return cards.map((card) => {
-                // Get anchor - the card itself or first link inside
-                let anchor: HTMLAnchorElement | null = null;
-                if (card.tagName === 'A') {
-                    anchor = card as HTMLAnchorElement;
-                } else {
-                    anchor = card.querySelector('a') as HTMLAnchorElement;
-                }
+                // Get anchor inside card
+                const anchor = card.querySelector('a') as HTMLAnchorElement | null;
 
                 if (!anchor?.href) return null;
                 if (!anchor.href.includes('ticketsports.com.br')) return null;
 
                 // Get image
-                const img = card.querySelector('img.thumb-event, img[class*="thumb"], img') as HTMLImageElement;
+                const img = card.querySelector('img.thumb-event') as HTMLImageElement;
 
-                // Get title using specific class or fallback
-                const titleEl = card.querySelector('.titulo-card-evento, [class*="titulo-card"], h2, h3, h4');
+                // Get title from .titulo-card-evento
+                const titleEl = card.querySelector('.titulo-card-evento');
                 const title = titleEl?.textContent?.trim() || '';
 
-                // Get date using specific class
-                const dateEl = card.querySelector('.data-card-evento, [class*="data-card"]');
-                const dateStr = dateEl?.textContent?.trim() || '';
+                // Get date from .data-card-evento time element
+                // The datetime attribute has the date in ISO format (e.g., "2026-04-19")
+                const timeEl = card.querySelector('.data-card-evento time');
+                const dateAttr = timeEl?.getAttribute('datetime') || '';
+                const dateStr = timeEl?.textContent?.trim() || dateAttr;
 
-                // Get location using specific class
-                const locationEl = card.querySelector('.local-card-evento, [class*="local-card"]');
+                // Get location from .local-card-evento
+                const locationEl = card.querySelector('.local-card-evento .text-footer, .local-card-evento');
                 const location = locationEl?.textContent?.trim() || '';
 
                 return {
                     title,
                     detailUrl: anchor.href,
-                    dateStr,
+                    dateStr: dateAttr || dateStr, // Prefer datetime attribute
                     location,
                     imageUrl: img?.src || null,
                 };
@@ -341,8 +337,9 @@ export class TicketSportsProvider implements ProviderScraper {
                 };
             });
 
-            // Parse date
-            const date = this.parseDate(details.dateStr || rawEvent.dateStr);
+            // Parse date - prioritize rawEvent.dateStr which has the datetime attribute from card
+            // The card's datetime attribute is in ISO format (YYYY-MM-DD) and is more reliable
+            const date = this.parseDate(rawEvent.dateStr) || this.parseDate(details.dateStr);
             if (!date) {
                 providerLog(PROVIDER_NAME, `Could not parse date for ${rawEvent.title}`, 'warn');
                 await closePage(page);
@@ -361,7 +358,8 @@ export class TicketSportsProvider implements ProviderScraper {
                 city,
                 state,
                 distances: details.distances.length > 0 ? details.distances : ['Corrida'],
-                regUrl: details.regUrl,
+                // Use the event detail page URL as regUrl so users can see event info before registering
+                regUrl: rawEvent.detailUrl,
                 sourceUrl: rawEvent.detailUrl,
                 sourcePlatform: PROVIDER_NAME,
                 sourceEventId: this.extractEventId(rawEvent.detailUrl),
@@ -387,7 +385,8 @@ export class TicketSportsProvider implements ProviderScraper {
             return date;
         }
 
-        // Try DD/MM/YYYY format
+        // Try DD/MM/YYYY format (single date or first date of dual format like "01/08/2026 e 02/08/2026")
+        // For dual dates, we extract and use only the first date
         const brMatch = dateStr.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
         if (brMatch) {
             const [, day, month, year] = brMatch;
