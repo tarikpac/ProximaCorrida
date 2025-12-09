@@ -2,7 +2,7 @@
 
 ## Backend (`apps/api`)
 - **Framework:** NestJS 11
-- **Runtime:** Node.js 20 (AWS Lambda)
+- **Runtime:** Node.js 20 (Koyeb - always-on container)
 - **Linguagem:** TypeScript
 - **Database:** PostgreSQL (hospedado no Supabase)
 - **ORM:** Prisma
@@ -21,15 +21,15 @@
 
 ## Hosting & Deploy (Produção)
 
-### API (AWS Lambda)
-- **Runtime:** AWS Lambda (Node 20) + API Gateway (HTTP API)
-- **Modelo:** Serverless, scale-to-zero, pay-per-use
-- **Região:** sa-east-1 (São Paulo)
-- **URL:** `https://7smmzptkgk.execute-api.sa-east-1.amazonaws.com/`
-- **Adaptador:** `@vendia/serverless-express` para NestJS
-- **Secrets:** AWS SSM Parameter Store (DATABASE_URL, VAPID keys)
-- **Logging:** CloudWatch
-- **Deploy Tool:** Serverless Framework v3
+### API (Koyeb)
+- **Plataforma:** Koyeb (container always-on, free tier)
+- **Runtime:** Node.js 20 (Alpine Linux container)
+- **Modelo:** Always-on instance (sem cold starts)
+- **Região:** Washington DC (was)
+- **URL:** `https://sensible-amalita-proximacorrida-fd8a53f4.koyeb.app`
+- **Deploy:** Docker (via Dockerfile.koyeb)
+- **Secrets:** Environment Variables no painel Koyeb
+- **Logging:** Koyeb Dashboard
 
 ### Frontend (Vercel)
 - **Plataforma:** Vercel
@@ -38,6 +38,7 @@
 
 ### Database (Supabase)
 - **Tipo:** PostgreSQL gerenciado
+- **Região:** sa-east-1 (São Paulo)
 - **Conexão:** Via Prisma com connection pooling
 
 ### Scraper (GitHub Actions)
@@ -46,14 +47,17 @@
 - **Fluxo:** Standalone script → escrita direta no Supabase
 - **Código:** `scripts/scraper/`
 
-## Arquitetura Removida (Lambda Optimization)
+## Arquitetura Simplificada (Koyeb Migration)
 
-Para otimizar o tamanho do pacote Lambda (< 250MB), foram removidos:
+Após migração do AWS Lambda para Koyeb, removidos:
 
-- ❌ **BullMQ** — Push notifications agora são inline (síncronas)
-- ❌ **Redis** — Não há mais dependência de fila/cache
+- ❌ **AWS Lambda** — Substituído por Koyeb container
+- ❌ **API Gateway** — Koyeb fornece URL direta
+- ❌ **SSM Parameter Store** — Env vars diretamente no Koyeb
+- ❌ **Serverless Framework** — Deploy via Docker
+- ❌ **BullMQ** — Push notifications são inline (síncronas)
+- ❌ **Redis** — Não há dependência de fila/cache
 - ❌ **Playwright na API** — Scraper roda em GitHub Actions
-- ❌ **ScheduleModule** — Cron jobs via GitHub Actions
 
 ## Diagrama de Arquitetura
 
@@ -62,25 +66,35 @@ Para otimizar o tamanho do pacote Lambda (< 250MB), foram removidos:
 │                         PRODUÇÃO                                 │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  ┌──────────────┐    ┌──────────────────┐    ┌──────────────┐  │
-│  │   Vercel     │───▶│   API Gateway    │───▶│   Lambda     │  │
-│  │   Frontend   │    │   (HTTP API)     │    │   (NestJS)   │  │
-│  │   Next.js    │    │                  │    │              │  │
-│  └──────────────┘    └──────────────────┘    └──────┬───────┘  │
-│                                                      │          │
-│                                                      ▼          │
-│                                               ┌──────────────┐  │
-│                                               │   Supabase   │  │
-│                                               │   Postgres   │  │
-│                                               └──────┬───────┘  │
-│                                                      ▲          │
-│  ┌──────────────────────────────────────────────────┘          │
-│  │                                                              │
-│  │  ┌──────────────────┐                                       │
-│  └──│   GitHub Actions │                                       │
-│     │   Scraper Cron   │                                       │
-│     │   (Playwright)   │                                       │
-│     └──────────────────┘                                       │
+│  ┌──────────────┐                          ┌──────────────┐     │
+│  │   Vercel     │─────────────────────────▶│   Koyeb      │     │
+│  │   Frontend   │                          │   (NestJS)   │     │
+│  │   Next.js    │                          │   Always-On  │     │
+│  └──────────────┘                          └──────┬───────┘     │
+│                                                    │             │
+│                                                    ▼             │
+│                                             ┌──────────────┐    │
+│                                             │   Supabase   │    │
+│                                             │   Postgres   │    │
+│                                             └──────┬───────┘    │
+│                                                    ▲             │
+│  ┌─────────────────────────────────────────────────┘            │
+│  │                                                               │
+│  │  ┌──────────────────┐                                        │
+│  └──│   GitHub Actions │                                        │
+│     │   Scraper Cron   │                                        │
+│     │   (Playwright)   │                                        │
+│     └──────────────────┘                                        │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+## Custos
+
+| Serviço | Custo |
+|---------|-------|
+| Koyeb API | $0/mês (free tier) |
+| Vercel Frontend | $0/mês (hobby) |
+| Supabase Database | $0/mês (free tier) |
+| GitHub Actions | $0/mês (public repo) |
+| **Total** | **$0/mês** |
