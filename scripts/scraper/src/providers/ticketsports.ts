@@ -389,6 +389,40 @@ export class TicketSportsProvider implements ProviderScraper {
             }
         }
 
+        // Portuguese month names mapping
+        const monthNames: Record<string, string> = {
+            'janeiro': '01', 'fevereiro': '02', 'março': '03', 'marco': '03',
+            'abril': '04', 'maio': '05', 'junho': '06',
+            'julho': '07', 'agosto': '08', 'setembro': '09',
+            'outubro': '10', 'novembro': '11', 'dezembro': '12',
+        };
+
+        // Handle dual dates: "18 e 19 de Abril de 2026" - use the first date
+        const dualDateMatch = dateStr.match(/(\d{1,2})\s*e\s*\d{1,2}\s*de\s*(\w+)\s*(?:de\s*)?(\d{4})/i);
+        if (dualDateMatch) {
+            const [, day, monthName, year] = dualDateMatch;
+            const month = monthNames[monthName.toLowerCase()];
+            if (month) {
+                date = new Date(`${year}-${month}-${day.padStart(2, '0')}`);
+                if (!isNaN(date.getTime())) {
+                    return date;
+                }
+            }
+        }
+
+        // Handle "DD de MÊS de YYYY" format
+        const ptMatch = dateStr.match(/(\d{1,2})\s+de\s+(\w+)\s+(?:de\s+)?(\d{4})/i);
+        if (ptMatch) {
+            const [, day, monthName, year] = ptMatch;
+            const month = monthNames[monthName.toLowerCase()];
+            if (month) {
+                date = new Date(`${year}-${month}-${day.padStart(2, '0')}`);
+                if (!isNaN(date.getTime())) {
+                    return date;
+                }
+            }
+        }
+
         return null;
     }
 

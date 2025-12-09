@@ -306,7 +306,21 @@ export class CorreParaibaProvider implements ProviderScraper {
             });
 
             // Parse location first to check state filter
-            const { city, state } = this.parseLocation(details.locationText);
+            let { city, state } = this.parseLocation(details.locationText);
+
+            // Fallback: try to extract state from title (e.g., "CORRIDA - RN", "UIRAÚNA -PB")
+            if (!state) {
+                const titleStateMatch = rawEvent.title.match(/[-–]\s*([A-Z]{2})\s*$/);
+                if (titleStateMatch) {
+                    state = titleStateMatch[1].toUpperCase();
+                } else {
+                    // Try to find state anywhere in title: "MARTINS - RN" or "JOÃO PESSOA / RN"
+                    const anyStateMatch = rawEvent.title.match(/\s[-–\/]\s*([A-Z]{2})(?:\s|$)/i);
+                    if (anyStateMatch) {
+                        state = anyStateMatch[1].toUpperCase();
+                    }
+                }
+            }
 
             // If states are specified, check if this event matches
             if (states && states.length > 0) {
