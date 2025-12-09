@@ -26,9 +26,18 @@ export interface ProviderScrapeResult {
     events: StandardizedEvent[];
     /** Statistics */
     stats: {
+        /** Number of event cards found in listing */
+        cards?: number;
+        /** Number of events successfully processed */
         processed: number;
+        /** Number of events skipped (e.g., due to state filter) */
         skipped: number;
+        /** Number of events discarded due to date parsing errors */
+        discardedDate?: number;
+        /** Number of errors (e.g., timeouts, page errors) */
         errors: number;
+        /** Count of events by state */
+        stateCount?: Record<string, number>;
     };
 }
 

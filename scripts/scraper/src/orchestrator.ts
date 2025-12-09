@@ -14,7 +14,7 @@ import {
     ticketSportsProvider,
     minhasInscricoesProvider,
     doityProvider,
-    symplaProvider,
+    brasilQueCorreProvider,
     zeniteProvider,
     correParaibaProvider,
     race83Provider,
@@ -65,7 +65,7 @@ const PROVIDER_REGISTRY: ProviderScraper[] = [
     ticketSportsProvider,              // Priority 1 (highest)
     minhasInscricoesProvider,          // Priority 2
     doityProvider,                     // Priority 3
-    symplaProvider,                    // Priority 4
+    brasilQueCorreProvider,            // Priority 4
     zeniteProvider,                    // Priority 5
     // Regional providers (Nordeste only)
     correParaibaProvider,              // Priority 6
@@ -201,10 +201,25 @@ export async function orchestrateProviders(
             // Add events to pool (in priority order)
             allEvents.push(...result.events);
 
-            log(
-                `[${providerName}] Completed in ${(durationMs / 1000).toFixed(1)}s: ` +
-                `${result.events.length} events, ${result.stats.errors} errors`
-            );
+            // Build provider summary line
+            const parts: string[] = [];
+            if (result.stats.cards !== undefined) parts.push(`cards=${result.stats.cards}`);
+            parts.push(`events=${result.events.length}`);
+            if (result.stats.discardedDate) parts.push(`discarded_date=${result.stats.discardedDate}`);
+            if (result.stats.errors) parts.push(`errors=${result.stats.errors}`);
+            parts.push(`duration=${(durationMs / 1000).toFixed(1)}s`);
+
+            // Add top UFs if available
+            if (result.stats.stateCount && Object.keys(result.stats.stateCount).length > 0) {
+                const topUFs = Object.entries(result.stats.stateCount)
+                    .sort(([, a], [, b]) => b - a)
+                    .slice(0, 5)
+                    .map(([state, count]) => `${state}:${count}`)
+                    .join(',');
+                parts.push(`UFs={${topUFs}}`);
+            }
+
+            log(`${providerName}: ${parts.join(', ')}`);
         } catch (error) {
             const durationMs = Date.now() - providerStart;
             const errorMessage = (error as Error).message;
@@ -283,15 +298,28 @@ function createEmptyResult(startTime: number): OrchestratorResult {
  * Log orchestrator summary
  */
 function logOrchestratorSummary(result: OrchestratorResult): void {
-    log('\n=== ORCHESTRATOR SUMMARY ===');
-    log(`Providers executed: ${result.summary.totalProviders}`);
-    log(`  Successful: ${result.summary.successfulProviders}`);
-    log(`  Failed: ${result.summary.failedProviders}`);
-    log(`Events before dedup: ${result.summary.totalEventsBeforeDedup}`);
-    log(`Events after dedup: ${result.summary.totalEventsAfterDedup}`);
-    log(`Duplicates removed: ${result.summary.duplicatesRemoved}`);
-    log(`Total duration: ${(result.totalDurationMs / 1000).toFixed(1)}s`);
-    log('============================');
+    const { summary } = result;
+
+    // Calculate top 5 UFs from all events
+    const stateCount: Record<string, number> = {};
+    for (const event of result.events) {
+        if (event.state) {
+            stateCount[event.state] = (stateCount[event.state] || 0) + 1;
+        }
+    }
+
+    const topUFsStr = Object.keys(stateCount).length > 0
+        ? ` | UFs={${Object.entries(stateCount)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 5)
+            .map(([state, count]) => `${state}:${count}`)
+            .join(',')}}`
+        : '';
+
+    log('');
+    log(`=== SUMMARY: providers: ok=${summary.successfulProviders}, fail=${summary.failedProviders} | ` +
+        `before_dedup=${summary.totalEventsBeforeDedup}, after_dedup=${summary.totalEventsAfterDedup}, ` +
+        `removed=${summary.duplicatesRemoved} | duration=${(result.totalDurationMs / 1000).toFixed(1)}s${topUFsStr} ===`);
 }
 
 /**

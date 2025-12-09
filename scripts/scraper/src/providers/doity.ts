@@ -56,9 +56,12 @@ export class DoityProvider implements ProviderScraper {
         providerLog(PROVIDER_NAME, 'Starting scraper...');
 
         const events: StandardizedEvent[] = [];
+        let cards = 0;
         let processed = 0;
         let skipped = 0;
+        let discardedDate = 0;
         let errors = 0;
+        const stateCount: Record<string, number> = {};
 
         const page = await context.newPage();
 
@@ -76,7 +79,7 @@ export class DoityProvider implements ProviderScraper {
 
             // Extract event cards
             const rawEvents = await this.extractEventCards(page);
-            providerLog(PROVIDER_NAME, `Found ${rawEvents.length} events in listing`);
+            cards = rawEvents.length;
 
             // Filter by state if specified
             const filteredEvents = states && states.length > 0
@@ -93,13 +96,15 @@ export class DoityProvider implements ProviderScraper {
                     if (event) {
                         events.push(event);
                         processed++;
+                        if (event.state) {
+                            stateCount[event.state] = (stateCount[event.state] || 0) + 1;
+                        }
                     } else {
-                        skipped++;
+                        discardedDate++;
                     }
 
                     await delay(options.eventDelayMs);
                 } catch (error) {
-                    providerLog(PROVIDER_NAME, `Error processing ${rawEvent.title}: ${(error as Error).message}`, 'error');
                     errors++;
                 }
             }
@@ -109,7 +114,7 @@ export class DoityProvider implements ProviderScraper {
 
         return {
             events,
-            stats: { processed, skipped, errors },
+            stats: { cards, processed, skipped, discardedDate, errors, stateCount },
         };
     }
 

@@ -63,9 +63,12 @@ export class CorreParaibaProvider implements ProviderScraper {
         }
 
         const events: StandardizedEvent[] = [];
+        let cards = 0;
         let processed = 0;
         let skipped = 0;
+        let discardedDate = 0;
         let errors = 0;
+        const stateCount: Record<string, number> = {};
 
         const page = await context.newPage();
 
@@ -92,9 +95,18 @@ export class CorreParaibaProvider implements ProviderScraper {
                 return emptyResult();
             }
 
+            // Scroll down to load lazy-loaded events
+            for (let i = 0; i < 5; i++) {
+                await page.evaluate(() => window.scrollBy(0, 800));
+                await page.waitForTimeout(500);
+            }
+            // Scroll back to top
+            await page.evaluate(() => window.scrollTo(0, 0));
+            await page.waitForTimeout(1000);
+
             // Extract event cards
             const rawEvents = await this.extractEventCards(page);
-            providerLog(PROVIDER_NAME, `Found ${rawEvents.length} events in listing`);
+            cards = rawEvents.length;
 
             // Process each event
             for (const rawEvent of rawEvents) {
@@ -104,13 +116,15 @@ export class CorreParaibaProvider implements ProviderScraper {
                     if (event) {
                         events.push(event);
                         processed++;
+                        if (event.state) {
+                            stateCount[event.state] = (stateCount[event.state] || 0) + 1;
+                        }
                     } else {
-                        skipped++;
+                        discardedDate++;
                     }
 
                     await delay(options.eventDelayMs);
                 } catch (error) {
-                    providerLog(PROVIDER_NAME, `Error processing ${rawEvent.title}: ${(error as Error).message}`, 'error');
                     errors++;
                 }
             }
@@ -120,7 +134,7 @@ export class CorreParaibaProvider implements ProviderScraper {
 
         return {
             events,
-            stats: { processed, skipped, errors },
+            stats: { cards, processed, skipped, discardedDate, errors, stateCount },
         };
     }
 

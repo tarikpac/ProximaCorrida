@@ -1,129 +1,107 @@
 /**
- * Complete debug script for all providers
+ * Debug script for CorreParaiba and Race83 providers
  */
+
 import { chromium } from 'playwright';
 
-async function debugProvider(name: string, url: string, waitTime: number = 5000) {
-    console.log(`\n${'='.repeat(60)}`);
-    console.log(`=== Debugging ${name} ===`);
-    console.log(`URL: ${url}`);
-    console.log('='.repeat(60));
+async function debugProviders() {
+    console.log('=== Debug CorreParaiba and Race83 ===\n');
 
     const browser = await chromium.launch({ headless: true });
     const context = await browser.newContext();
-    const page = await context.newPage();
 
     try {
-        await page.goto(url, { timeout: 30000 });
-        await page.waitForTimeout(waitTime);
+        // ======= CORRE PARAÍBA =======
+        console.log('1. CORRE PARAÍBA');
+        console.log('='.repeat(60));
 
-        // Scroll to load lazy content
-        await page.evaluate(() => window.scrollBy(0, 500));
-        await page.waitForTimeout(1000);
-        await page.evaluate(() => window.scrollBy(0, 500));
-        await page.waitForTimeout(1000);
+        const cpPage = await context.newPage();
+        await cpPage.goto('https://www.correparaiba.com.br/', { timeout: 30000 });
+        await cpPage.waitForLoadState('domcontentloaded');
+        await cpPage.waitForTimeout(3000);
 
-        // Get page text
-        const bodyText = await page.evaluate(() => document.body.innerText);
-        console.log('\n--- Page Text (first 2500 chars) ---\n');
-        console.log(bodyText.substring(0, 2500));
-
-        // Get all relevant class names
-        const classNames = await page.evaluate(() => {
-            const elements = document.querySelectorAll('*');
-            const classes = new Set<string>();
-            elements.forEach(el => {
-                el.classList.forEach(c => {
-                    if (c.includes('card') || c.includes('event') || c.includes('evento') ||
-                        c.includes('item') || c.includes('list') || c.includes('grid') ||
-                        c.includes('title') || c.includes('titulo') || c.includes('date') ||
-                        c.includes('data') || c.includes('local') || c.includes('location')) {
-                        classes.add(c);
-                    }
-                });
-            });
-            return Array.from(classes).sort();
+        // Get first event link
+        const cpEventLinks = await cpPage.$$eval('a[href*="/corrida"], a[href*="corrida"]', (links) => {
+            return links.slice(0, 3).map(a => ({
+                href: (a as HTMLAnchorElement).href,
+                text: a.textContent?.trim() || ''
+            }));
         });
-        console.log('\n--- Relevant CSS Classes ---');
-        console.log(classNames.join(', '));
 
-        // Count links with common patterns
-        const linkStats = await page.evaluate(() => {
-            const allLinks = document.querySelectorAll('a');
-            const inscrevaLinks = Array.from(allLinks).filter(a =>
-                a.textContent?.toUpperCase().includes('INSCREV') ||
-                a.textContent?.toUpperCase().includes('INSCRIÇÃO')
-            );
-            const eventoLinks = Array.from(allLinks).filter(a =>
-                a.href.includes('/evento') || a.href.includes('/event') || a.href.includes('/e/')
-            );
-            return {
-                total: allLinks.length,
-                inscrevaCount: inscrevaLinks.length,
-                eventoCount: eventoLinks.length,
-            };
+        console.log(`Found ${cpEventLinks.length} event links`);
+        cpEventLinks.forEach((l, i) => console.log(`  ${i + 1}. ${l.text.substring(0, 40)} -> ${l.href}`));
+
+        if (cpEventLinks.length > 0) {
+            console.log('\n   Visiting first event...');
+            await cpPage.goto(cpEventLinks[0].href, { timeout: 30000 });
+            await cpPage.waitForTimeout(2000);
+
+            const cpDetails = await cpPage.evaluate(() => ({
+                bodyText: document.body.innerText.substring(0, 3000),
+                h1: document.querySelector('h1')?.textContent?.trim() || '',
+                h5s: Array.from(document.querySelectorAll('h5')).map(h => h.textContent?.trim() || ''),
+                h6s: Array.from(document.querySelectorAll('h6')).map(h => h.textContent?.trim() || ''),
+            }));
+
+            console.log(`   H1: ${cpDetails.h1}`);
+            console.log(`   H5s: ${cpDetails.h5s.join(' | ')}`);
+            console.log(`   H6s: ${cpDetails.h6s.join(' | ')}`);
+            console.log('\n   Body text (first 2000 chars):');
+            console.log('   ---');
+            console.log(cpDetails.bodyText.substring(0, 2000));
+            console.log('   ---');
+        }
+        await cpPage.close();
+
+        // ======= RACE83 =======
+        console.log('\n\n2. RACE83');
+        console.log('='.repeat(60));
+
+        const r83Page = await context.newPage();
+        await r83Page.goto('https://www.race83.com.br/', { timeout: 30000 });
+        await r83Page.waitForLoadState('domcontentloaded');
+        await r83Page.waitForTimeout(3000);
+
+        // Get first event link
+        const r83EventLinks = await r83Page.$$eval('a[href*="/evento/"], a[href*="/login/"]', (links) => {
+            return links.slice(0, 5).map(a => ({
+                href: (a as HTMLAnchorElement).href,
+                text: a.textContent?.trim() || ''
+            }));
         });
-        console.log('\n--- Link Statistics ---');
-        console.log(`Total links: ${linkStats.total}`);
-        console.log(`INSCREVA-SE buttons: ${linkStats.inscrevaCount}`);
-        console.log(`Event links: ${linkStats.eventoCount}`);
 
-        // Save screenshot
-        const screenshotName = `debug-${name.toLowerCase().replace(/\s+/g, '-')}.png`;
-        await page.screenshot({ path: screenshotName, fullPage: true });
-        console.log(`\nScreenshot saved: ${screenshotName}`);
+        console.log(`Found ${r83EventLinks.length} event links`);
+        r83EventLinks.forEach((l, i) => console.log(`  ${i + 1}. ${l.text.substring(0, 40)} -> ${l.href}`));
+
+        if (r83EventLinks.length > 0) {
+            // Find actual event link (not login)
+            const eventLink = r83EventLinks.find(l => l.href.includes('/evento/'));
+            if (eventLink) {
+                console.log('\n   Visiting event...');
+                await r83Page.goto(eventLink.href, { timeout: 30000 });
+                await r83Page.waitForTimeout(2000);
+
+                const r83Details = await r83Page.evaluate(() => ({
+                    bodyText: document.body.innerText.substring(0, 3000),
+                    h1: document.querySelector('h1')?.textContent?.trim() || '',
+                    h2: document.querySelector('h2')?.textContent?.trim() || '',
+                }));
+
+                console.log(`   H1: ${r83Details.h1}`);
+                console.log(`   H2: ${r83Details.h2}`);
+                console.log('\n   Body text (first 2000 chars):');
+                console.log('   ---');
+                console.log(r83Details.bodyText.substring(0, 2000));
+                console.log('   ---');
+            }
+        }
+        await r83Page.close();
 
     } catch (error) {
-        console.error(`Error: ${(error as Error).message}`);
+        console.error('Error:', error);
     } finally {
         await browser.close();
     }
 }
 
-async function main() {
-    // TicketSports - correct URL format
-    await debugProvider(
-        'TicketSports PB',
-        'https://www.ticketsports.com.br/Calendario/Todos-os-organizadores/Corrida-de-rua,Trail-run/PB/Todas-as-cidades/0,00/0,00/false/?termo=&periodo=0&mes=0&inicio=&fim=&ordenacao=&pais='
-    );
-
-    // Minhas Inscrições
-    await debugProvider(
-        'Minhas Inscrições',
-        'https://www.minhasinscricoes.com.br/eventos/corrida'
-    );
-
-    // Doity - Sports/Running category
-    await debugProvider(
-        'Doity',
-        'https://doity.com.br/eventos?category=24771'
-    );
-
-    // Sympla - Running search
-    await debugProvider(
-        'Sympla',
-        'https://www.sympla.com.br/eventos?s=corrida&c=esportes'
-    );
-
-    // Zenite Esportes
-    await debugProvider(
-        'Zenite',
-        'https://www.zeniteesportes.com/proximos-eventos'
-    );
-
-    // Corre Paraíba
-    await debugProvider(
-        'Corre Paraíba',
-        'https://correparaiba.com.br/eventos'
-    );
-
-    // Race83
-    await debugProvider(
-        'Race83',
-        'https://www.race83.com.br/eventos'
-    );
-
-    console.log('\n\n=== DEBUG COMPLETE ===\n');
-}
-
-main().catch(console.error);
+debugProviders();

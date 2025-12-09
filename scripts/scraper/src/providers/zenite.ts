@@ -53,9 +53,12 @@ export class ZeniteProvider implements ProviderScraper {
         providerLog(PROVIDER_NAME, 'Starting scraper...');
 
         const events: StandardizedEvent[] = [];
+        let cards = 0;
         let processed = 0;
         let skipped = 0;
+        let discardedDate = 0;
         let errors = 0;
+        const stateCount: Record<string, number> = {};
 
         const page = await context.newPage();
 
@@ -85,7 +88,7 @@ export class ZeniteProvider implements ProviderScraper {
 
             // Extract event cards
             const rawEvents = await this.extractEventCards(page);
-            providerLog(PROVIDER_NAME, `Found ${rawEvents.length} events in listing`);
+            cards = rawEvents.length;
 
             // Process each event
             for (const rawEvent of rawEvents) {
@@ -109,13 +112,15 @@ export class ZeniteProvider implements ProviderScraper {
 
                         events.push(event);
                         processed++;
+                        if (event.state) {
+                            stateCount[event.state] = (stateCount[event.state] || 0) + 1;
+                        }
                     } else {
-                        skipped++;
+                        discardedDate++;
                     }
 
                     await delay(options.eventDelayMs);
                 } catch (error) {
-                    providerLog(PROVIDER_NAME, `Error processing ${rawEvent.title}: ${(error as Error).message}`, 'error');
                     errors++;
                 }
             }
@@ -125,7 +130,7 @@ export class ZeniteProvider implements ProviderScraper {
 
         return {
             events,
-            stats: { processed, skipped, errors },
+            stats: { cards, processed, skipped, discardedDate, errors, stateCount },
         };
     }
 
@@ -223,13 +228,21 @@ export class ZeniteProvider implements ProviderScraper {
                 const bodyText = document.body.innerText;
                 let dateStr = '';
 
-                const dateMatch = bodyText.match(/Data\s*(?:da\s*)?(?:corrida|evento)[\s:]+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/i);
+                const dateMatch = bodyText.match(/Data\s+da\s+corrida\s+(\d{1,2}[\/-]\d{1,2}[\/-]\d{4})/i);
                 if (dateMatch) {
                     dateStr = dateMatch[1];
                 } else {
-                    // Try to find any date
-                    const anyDateMatch = bodyText.match(/(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/);
-                    dateStr = anyDateMatch ? anyDateMatch[1] : '';
+                    // Fallback: find date from lines that are NOT about inscriptions/kits
+                    const lines = bodyText.split('\n');
+                    for (const line of lines) {
+                        // Skip lines about inscriptions or kits
+                        if (/inscri[çc]/i.test(line) || /kits?/i.test(line)) continue;
+                        const lineDateMatch = line.match(/(\d{1,2}[\/-]\d{1,2}[\/-]\d{4})/);
+                        if (lineDateMatch) {
+                            dateStr = lineDateMatch[1];
+                            break;
+                        }
+                    }
                 }
 
                 // Find location from text

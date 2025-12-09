@@ -9,7 +9,7 @@ export * from './base';
 export { TicketSportsProvider, ticketSportsProvider } from './ticketsports';
 export { MinhasInscricoesProvider, minhasInscricoesProvider } from './minhasinscricoes';
 export { DoityProvider, doityProvider } from './doity';
-export { SymplaProvider, symplaProvider } from './sympla';
+export { BrasilQueCorreProvider, brasilQueCorreProvider } from './brasilquecorre';
 export { ZeniteProvider, zeniteProvider } from './zenite';
 
 // Regional Provider implementations (Nordeste only)

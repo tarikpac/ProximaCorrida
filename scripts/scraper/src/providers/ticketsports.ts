@@ -158,9 +158,11 @@ export class TicketSportsProvider implements ProviderScraper {
         options: ProviderScraperOptions
     ): Promise<ProviderScrapeResult> {
         const events: StandardizedEvent[] = [];
+        let cards = 0;
         let processed = 0;
-        let skipped = 0;
+        let discardedDate = 0;
         let errors = 0;
+        const stateCount: Record<string, number> = {};
 
         const page = await context.newPage();
 
@@ -198,7 +200,7 @@ export class TicketSportsProvider implements ProviderScraper {
 
             // Extract event cards from listing
             const rawEvents = await this.extractEventCards(page);
-            providerLog(PROVIDER_NAME, `Found ${rawEvents.length} events in listing`);
+            cards = rawEvents.length;
 
             // Process each event detail
             for (const rawEvent of rawEvents) {
@@ -213,13 +215,19 @@ export class TicketSportsProvider implements ProviderScraper {
                     if (event) {
                         events.push(event);
                         processed++;
+                        if (event.state) {
+                            stateCount[event.state] = (stateCount[event.state] || 0) + 1;
+                        }
                     } else {
-                        skipped++;
+                        discardedDate++;
                     }
 
                     await delay(options.eventDelayMs);
                 } catch (error) {
-                    providerLog(PROVIDER_NAME, `Error processing ${rawEvent.title}: ${(error as Error).message}`, 'error');
+                    const errMsg = (error as Error).message;
+                    if (errMsg.includes('Timeout')) {
+                        providerLog(PROVIDER_NAME, `timeout: ${rawEvent.detailUrl.substring(0, 50)}...`, 'error');
+                    }
                     errors++;
                 }
             }
@@ -229,7 +237,7 @@ export class TicketSportsProvider implements ProviderScraper {
 
         return {
             events,
-            stats: { processed, skipped, errors },
+            stats: { cards, processed, skipped: 0, discardedDate, errors, stateCount },
         };
     }
 
