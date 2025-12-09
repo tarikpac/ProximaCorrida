@@ -308,7 +308,8 @@ export class ZeniteProvider implements ProviderScraper {
                 city,
                 state,
                 distances: details.distances.length > 0 ? details.distances : ['Corrida'],
-                regUrl: details.regUrl,
+                // Use event detail page URL - users see event info before registering
+                regUrl: rawEvent.detailUrl,
                 sourceUrl: rawEvent.detailUrl,
                 sourcePlatform: PROVIDER_NAME,
                 sourceEventId: this.extractEventId(rawEvent.detailUrl),
