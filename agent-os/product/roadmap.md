@@ -24,6 +24,7 @@
 22. [ ] **"I'm Going" & Popularity System** — Add "Eu vou" button, track attendance counts, and implement logic to badge events as "Popular" or "High Attendance". `M`
 23. [ ] **Coupons & Discounts Page** — Develop a page to display discount coupons (manual entry or scraped), filterable by state, to provide extra value to runners. `S`
 24. [ ] **Deployment & Final Polish** — Configure production environment (Vercel/Railway/Supabase), fix mobile-specific connection issues (CORS/SSL), optimize assets, and perform final E2E testing on real devices. `M`
+25. [ ] **Security Hardening & Vulnerability Fixes** — Audit and fix npm vulnerabilities, update deprecated dependencies, implement security headers (CSP, HSTS, X-Frame-Options), review and strengthen input validation, audit SQL injection/XSS vectors, secure API endpoints, review CORS policy, implement proper error handling without info leakage, and add security monitoring/logging. `M`
 
 > Notes
 > - **Security First**: Integrity features are prioritized to ensure a stable foundation.
