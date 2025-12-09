@@ -166,45 +166,76 @@ export class CorridasBRProvider implements ProviderScraper {
         const page = await context.newPage();
 
         try {
-            // Navigate with longer timeout and ignore ads
-            await page.goto(url, { timeout: options.detailTimeoutMs * 3, waitUntil: 'domcontentloaded' });
+            // Start with the main calendar URL
+            let currentUrl = url;
+            let hasNextPage = true;
+            let pageNum = 1;
 
-            // Wait a bit for content to load
-            await page.waitForTimeout(2000);
+            while (hasNextPage) {
+                if (pageNum > 1) {
+                    providerLog(PROVIDER_NAME, `Scraping page ${pageNum} for ${state}...`);
+                    await page.goto(currentUrl, { timeout: options.detailTimeoutMs * 3, waitUntil: 'domcontentloaded' });
+                    await page.waitForTimeout(2000);
+                } else {
+                    // First page already navigated or to be navigated
+                    await page.goto(currentUrl, { timeout: options.detailTimeoutMs * 3, waitUntil: 'domcontentloaded' });
+                    await page.waitForTimeout(2000);
+                }
 
-            // Extract event cards from the calendar page
-            const rawEvents = await this.extractEventCards(page, state);
-            cards = rawEvents.length;
+                // Extract event cards from the current page
+                const rawEvents = await this.extractEventCards(page, state);
+                const pageCards = rawEvents.length;
+                cards += pageCards;
 
-            providerLog(PROVIDER_NAME, `Found ${cards} events in ${state}`);
+                providerLog(PROVIDER_NAME, `Found ${pageCards} events on page ${pageNum} of ${state}`);
 
-            // Process each event detail
-            for (const rawEvent of rawEvents) {
-                try {
-                    const event = await this.processEventDetail(
-                        context,
-                        rawEvent,
-                        state,
-                        options
-                    );
+                // Process each event detail
+                for (const rawEvent of rawEvents) {
+                    try {
+                        const event = await this.processEventDetail(
+                            context,
+                            rawEvent,
+                            state,
+                            options
+                        );
 
-                    if (event) {
-                        events.push(event);
-                        processed++;
-                        stateCount[state] = (stateCount[state] || 0) + 1;
-                    } else {
-                        discardedDate++;
+                        if (event) {
+                            events.push(event);
+                            processed++;
+                            stateCount[state] = (stateCount[state] || 0) + 1;
+                        } else {
+                            discardedDate++;
+                        }
+
+                        await delay(options.eventDelayMs);
+                    } catch (error) {
+                        const errMsg = (error as Error).message;
+                        if (errMsg.includes('Timeout') || errMsg.includes('timeout')) {
+                            providerLog(PROVIDER_NAME, `timeout: ${rawEvent.detailUrl.substring(0, 60)}...`, 'error');
+                        } else {
+                            providerLog(PROVIDER_NAME, `Error processing ${rawEvent.title}: ${errMsg}`, 'error');
+                        }
+                        errors++;
                     }
+                }
 
-                    await delay(options.eventDelayMs);
-                } catch (error) {
-                    const errMsg = (error as Error).message;
-                    if (errMsg.includes('Timeout') || errMsg.includes('timeout')) {
-                        providerLog(PROVIDER_NAME, `timeout: ${rawEvent.detailUrl.substring(0, 60)}...`, 'error');
-                    } else {
-                        providerLog(PROVIDER_NAME, `Error processing ${rawEvent.title}: ${errMsg}`, 'error');
-                    }
-                    errors++;
+                // Check for next page
+                const nextPageHref = await page.evaluate(() => {
+                    // Look for link with text "Próximas Corridas"
+                    const links = Array.from(document.querySelectorAll('a'));
+                    const nextLink = links.find(l => l.textContent?.toLowerCase().includes('próximas corridas') || l.textContent?.toLowerCase().includes('proximas corridas'));
+                    return nextLink ? nextLink.getAttribute('href') : null;
+                });
+
+                if (nextPageHref) {
+                    // Construct absolute URL for next page
+                    // The href is usually relative like 'Calendario2.asp'
+                    const baseUrl = url.substring(0, url.lastIndexOf('/') + 1);
+                    currentUrl = baseUrl + nextPageHref;
+                    pageNum++;
+                    await delay(2000); // Wait between pages
+                } else {
+                    hasNextPage = false;
                 }
             }
         } finally {
