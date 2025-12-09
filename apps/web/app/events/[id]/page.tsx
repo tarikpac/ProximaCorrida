@@ -1,7 +1,6 @@
 import { getEvent } from '@/lib/api';
 import { Calendar, MapPin, ExternalLink, Share2, ArrowUpRight, Timer } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { parseDateSafe, formatDateDisplay } from '@/lib/date-utils';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ShareButton } from '@/components/share/share-button';
@@ -14,9 +13,10 @@ export default async function EventDetailsPage({ params }: { params: Promise<{ i
         return <div>Evento não encontrado</div>;
     }
 
-    const formattedDate = format(new Date(event.date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR }).toUpperCase();
-    const day = format(new Date(event.date), "dd");
-    const month = format(new Date(event.date), "MMM", { locale: ptBR }).toUpperCase().replace('.', '');
+    const parsed = parseDateSafe(event.date);
+    const formattedDate = formatDateDisplay(event.date, 'full');
+    const day = parsed?.day || '??';
+    const month = parsed?.month || '???';
 
     return (
         <main className="min-h-screen bg-zinc-950 flex flex-col">

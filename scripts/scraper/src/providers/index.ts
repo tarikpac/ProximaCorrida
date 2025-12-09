@@ -8,7 +8,7 @@ export * from './base';
 // National Provider implementations (all Brazilian states)
 export { TicketSportsProvider, ticketSportsProvider } from './ticketsports';
 export { MinhasInscricoesProvider, minhasInscricoesProvider } from './minhasinscricoes';
-export { DoityProvider, doityProvider } from './doity';
+export { CorridasBRProvider, corridasBRProvider } from './corridasbr';
 export { BrasilQueCorreProvider, brasilQueCorreProvider } from './brasilquecorre';
 export { ZeniteProvider, zeniteProvider } from './zenite';
 

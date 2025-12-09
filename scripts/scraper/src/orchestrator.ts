@@ -13,7 +13,7 @@ import {
 import {
     ticketSportsProvider,
     minhasInscricoesProvider,
-    doityProvider,
+    corridasBRProvider,
     brasilQueCorreProvider,
     zeniteProvider,
     correParaibaProvider,
@@ -64,13 +64,14 @@ const PROVIDER_REGISTRY: ProviderScraper[] = [
     // National providers (all Brazilian states)
     ticketSportsProvider,              // Priority 1 (highest)
     minhasInscricoesProvider,          // Priority 2
-    doityProvider,                     // Priority 3
+    corridasBRProvider,                // Priority 3 (replaced Doity)
     brasilQueCorreProvider,            // Priority 4
     zeniteProvider,                    // Priority 5
     // Regional providers (Nordeste only)
     correParaibaProvider,              // Priority 6
     race83Provider,                    // Priority 7
     // Note: corridasemaratonas was deprecated and removed
+    // Note: doity was replaced by corridasbr
 ];
 
 /**

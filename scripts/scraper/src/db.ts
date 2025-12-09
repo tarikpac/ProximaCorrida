@@ -5,6 +5,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { StandardizedEvent } from './interfaces';
+import { cleanCityName, toTitleCase } from './utils/normalization';
 
 let prisma: PrismaClient | null = null;
 
@@ -52,6 +53,11 @@ export interface UpsertResult {
 export async function upsertEvent(event: StandardizedEvent): Promise<UpsertResult> {
     const db = getDatabase();
 
+    // Clean city name before saving
+    const cleanCity = cleanCityName(event.city) || '';
+    // Normalize title to Title Case
+    const cleanTitle = toTitleCase(event.title);
+
     // Check if event exists
     const existing = await db.event.findUnique({
         where: { sourceUrl: event.sourceUrl },
@@ -63,9 +69,9 @@ export async function upsertEvent(event: StandardizedEvent): Promise<UpsertResul
         await db.event.update({
             where: { sourceUrl: event.sourceUrl },
             data: {
-                title: event.title,
+                title: cleanTitle,
                 date: event.date,
-                city: event.city ?? '',
+                city: cleanCity,
                 state: event.state ?? 'PB',
                 distances: event.distances,
                 regLink: event.regUrl ?? '',
@@ -85,9 +91,9 @@ export async function upsertEvent(event: StandardizedEvent): Promise<UpsertResul
         // Create new event
         const created = await db.event.create({
             data: {
-                title: event.title,
+                title: cleanTitle,
                 date: event.date,
-                city: event.city ?? '',
+                city: cleanCity,
                 state: event.state ?? 'PB',
                 distances: event.distances,
                 regLink: event.regUrl ?? '',

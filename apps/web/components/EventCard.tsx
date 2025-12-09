@@ -1,7 +1,6 @@
 import { Event } from '@/types/event';
 import { Calendar, MapPin, Ruler } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { parseDateSafe, formatDateDisplay, getWeekday } from '@/lib/date-utils';
 import Link from 'next/link';
 
 interface EventCardProps {
@@ -9,8 +8,9 @@ interface EventCardProps {
 }
 
 export function EventCard({ event }: EventCardProps) {
-    const formattedDate = format(new Date(event.date), "dd 'de' MMMM", { locale: ptBR });
-    const weekDay = format(new Date(event.date), "EEEE", { locale: ptBR });
+    const parsed = parseDateSafe(event.date);
+    const formattedDate = formatDateDisplay(event.date, 'medium');
+    const weekDay = getWeekday(event.date);
 
     return (
         <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 h-full flex flex-col group">
@@ -43,10 +43,10 @@ export function EventCard({ event }: EventCardProps) {
                     </div>
                     <div className="text-center bg-gray-50 px-2 py-1 rounded-lg border border-gray-100 min-w-[3.5rem]">
                         <span className="block text-lg font-bold text-gray-900 leading-none">
-                            {format(new Date(event.date), 'dd')}
+                            {parsed?.day || '??'}
                         </span>
                         <span className="block text-[10px] font-medium text-gray-500 uppercase">
-                            {format(new Date(event.date), 'MMM', { locale: ptBR })}
+                            {parsed?.month || '???'}
                         </span>
                     </div>
                 </div>

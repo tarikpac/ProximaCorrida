@@ -4,8 +4,7 @@ import { useEvents } from "@/hooks/use-events";
 import { EventCard } from "@/components/ui/event-card";
 import { ArrowRight, Loader2, FilterX } from "lucide-react";
 import Link from "next/link";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { parseDateSafe } from "@/lib/date-utils";
 import { useEffect, useState } from "react";
 import { useEventFilters } from "@/hooks/use-event-filters";
 
@@ -92,14 +91,10 @@ export function EventGrid() {
                         let day = '??';
                         let month = '???';
 
-                        try {
-                            const dateObj = new Date(event.date);
-                            if (!isNaN(dateObj.getTime())) {
-                                day = format(dateObj, 'dd');
-                                month = format(dateObj, 'MMM', { locale: ptBR }).toUpperCase().replace('.', '');
-                            }
-                        } catch (e) {
-                            console.error("Date parsing error", e);
+                        const parsed = parseDateSafe(event.date);
+                        if (parsed) {
+                            day = parsed.day;
+                            month = parsed.month;
                         }
 
                         return (
