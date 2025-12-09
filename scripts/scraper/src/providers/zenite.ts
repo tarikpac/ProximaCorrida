@@ -94,8 +94,14 @@ export class ZeniteProvider implements ProviderScraper {
 
                     if (event) {
                         // Filter by state if specified
-                        if (states && states.length > 0 && event.state) {
+                        if (states && states.length > 0) {
+                            if (!event.state) {
+                                providerLog(PROVIDER_NAME, `Skipping event with unknown state: ${event.title}`, 'debug');
+                                skipped++;
+                                continue;
+                            }
                             if (!states.includes(event.state)) {
+                                providerLog(PROVIDER_NAME, `Skipping event in ${event.state} (not in filter)`, 'debug');
                                 skipped++;
                                 continue;
                             }

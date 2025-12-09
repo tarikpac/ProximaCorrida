@@ -368,7 +368,12 @@ export class Race83Provider implements ProviderScraper {
             }
 
             // Check state filter
-            if (states && states.length > 0 && finalState) {
+            if (states && states.length > 0) {
+                if (!finalState) {
+                    providerLog(PROVIDER_NAME, `Skipping event with unknown state: ${rawEvent.title}`, 'debug');
+                    await closePage(page);
+                    return null;
+                }
                 if (!states.includes(finalState)) {
                     providerLog(PROVIDER_NAME, `Skipping event in ${finalState} (not in filter)`, 'debug');
                     await closePage(page);

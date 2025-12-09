@@ -163,7 +163,8 @@ export class DoityProvider implements ProviderScraper {
     }
 
     private matchesStateFilter(location: string, states: string[]): boolean {
-        if (!location) return true;
+        // If no location, don't match (skip the event when filter is active)
+        if (!location) return false;
 
         const upperLocation = location.toUpperCase();
         return states.some(state => upperLocation.includes(state));

@@ -309,7 +309,12 @@ export class CorreParaibaProvider implements ProviderScraper {
             const { city, state } = this.parseLocation(details.locationText);
 
             // If states are specified, check if this event matches
-            if (states && states.length > 0 && state) {
+            if (states && states.length > 0) {
+                if (!state) {
+                    providerLog(PROVIDER_NAME, `Skipping event with unknown state: ${rawEvent.title}`, 'debug');
+                    await closePage(page);
+                    return null;
+                }
                 if (!states.includes(state)) {
                     providerLog(PROVIDER_NAME, `Skipping event in ${state} (not in filter)`, 'debug');
                     await closePage(page);
