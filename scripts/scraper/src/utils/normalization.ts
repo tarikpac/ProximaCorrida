@@ -128,8 +128,10 @@ export function cleanCityName(cityRaw: string | null): string | null {
         }
     }
 
-    // Remove any trailing state code
-    city = city.replace(/,?\s*[A-Z]{2}$/i, '').trim();
+    // Remove any trailing state code (only if clearly separated by comma, dash, or space)
+    // Must be preceded by separator to avoid cutting "Natal" -> "Nat"
+    city = city.replace(/[,\-]\s*[A-Z]{2}$/i, '').trim();
+    city = city.replace(/\s+[A-Z]{2}$/i, '').trim(); // Only if preceded by whitespace
     city = city.replace(/,?\s*Brasil$/i, '').trim();
 
     // Final validation
