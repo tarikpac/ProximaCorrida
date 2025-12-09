@@ -22,10 +22,28 @@ const PROVIDER_PRIORITY = 6;
 
 const LISTING_URL = 'https://correparaiba.com.br/eventos';
 
+// Known cities in Paraíba - used when location doesn't include state
+const KNOWN_PB_CITIES = new Set([
+    'JOAO PESSOA', 'JOÃO PESSOA', 'CAMPINA GRANDE', 'PATOS', 'SOUSA', 'SOUZA',
+    'CAJAZEIRAS', 'BAYEUX', 'SANTA RITA', 'CABEDELO', 'GUARABIRA', 'ESPERANCA',
+    'ESPERANÇA', 'MAMANGUAPE', 'POMBAL', 'MONTEIRO', 'PICUI', 'PICUÍ', 'CUITÉ',
+    'ITAPORANGA', 'SAO BENTO', 'SÃO BENTO', 'PIANCO', 'PIANCÓ', 'PRINCESA ISABEL',
+    'AREIA', 'BANANEIRAS', 'SOLÂNEA', 'SOLANEA', 'ITABAIANA', 'ALAGOA GRANDE',
+    'ALAGOINHA', 'ALAGOA NOVA', 'UIRAÚNA', 'UIRAUNA', 'QUEIMADAS', 'LAGOA SECA',
+    'PUXINANÃ', 'PUXINANA', 'MASSARANDUBA', 'SERRA BRANCA', 'SUMÉ', 'SUME',
+    'TEIXEIRA', 'TAPEROÁ', 'TAPEROA', 'DIAMANTE', 'CATOLE DO ROCHA', 'CATOLÉ DO ROCHA',
+    'SAO JOAO DO RIO DO PEIXE', 'SÃO JOÃO DO RIO DO PEIXE', 'COREMAS', 'PEDRAS DE FOGO',
+    'CONDE', 'PITIMBU', 'LUCENA', 'RIO TINTO', 'SANTA LUZIA', 'PRATA', 'OURO VELHO',
+    'CONGO', 'CARAÚBAS', 'CARAUBAS', 'JUAZEIRINHO', 'SAO JOSE DE PIRANHAS',
+    'SÃO JOSÉ DE PIRANHAS', 'AGUA BRANCA', 'ÁGUA BRANCA', 'APARECIDA', 'BELÉM',
+    'BELEM', 'BONITO DE SANTA FÉ', 'CACHOEIRA DOS INDIOS', 'IRACEMA', 'MARIZÓPOLIS'
+].map(c => c.toUpperCase()));
+
 interface RawEventCard {
     title: string;
     detailUrl: string;
     imageUrl: string | null;
+    location: string | null;  // Location from listing page (e.g., "IRACEMA - CE")
 }
 
 /**
@@ -139,26 +157,40 @@ export class CorreParaibaProvider implements ProviderScraper {
     }
 
     private async extractEventCards(page: Page): Promise<RawEventCard[]> {
-        // Debug showed classes: tg-listing-card-title, tg-destination-item
-        // Events format: DATE\nTITLE\nLOCATION
+        // Based on actual HTML structure:
+        // <div class="tg-destination-item">
+        //   <div class="tg-destination-meta"><a>18 de Janeiro de 2026</a></div>
+        //   <h4 class="tg-listing-card-title"><a href="...">TITLE</a></h4>
+        //   <div class="tg-listing-card-duration-tour">
+        //     <span class="tg-listing-card-duration-map">IRACEMA - CE</span>
+        //   </div>
+        // </div>
 
         // First try to find event items with TG classes
-        const fromTgItems = await page.$$eval('.tg-destination-item, [class*="tg-listing"]', (items) => {
-            const events: Array<{ title: string, detailUrl: string, imageUrl: string | null }> = [];
+        const fromTgItems = await page.$$eval('.tg-destination-item', (items) => {
+            const events: Array<{ title: string, detailUrl: string, imageUrl: string | null, location: string | null }> = [];
+            const seen = new Set<string>();
 
             items.forEach((item) => {
-                const anchor = item.querySelector('a') as HTMLAnchorElement;
-                const titleEl = item.querySelector('.tg-listing-card-title, [class*="card-title"]');
+                // Get title from the dedicated title element
+                const titleEl = item.querySelector('.tg-listing-card-title a, h4 a') as HTMLAnchorElement;
                 const img = item.querySelector('img') as HTMLImageElement;
 
-                const title = titleEl?.textContent?.trim() || anchor?.textContent?.trim() || '';
-                const detailUrl = anchor?.href || '';
+                // Extract location from the dedicated span (contains "CITY - ST" or just "CITY")
+                const locationSpan = item.querySelector('.tg-listing-card-duration-map');
+                const location = locationSpan?.textContent?.trim() || null;
 
-                if (title && title.length > 5 && detailUrl.includes('correparaiba.com.br')) {
+                const title = titleEl?.textContent?.trim() || '';
+                const detailUrl = titleEl?.href || '';
+
+                // Use detailUrl as unique identifier to avoid duplicates
+                if (title && title.length > 5 && detailUrl.includes('correparaiba.com.br') && !seen.has(detailUrl)) {
+                    seen.add(detailUrl);
                     events.push({
                         title,
                         detailUrl,
                         imageUrl: img?.src || null,
+                        location,
                     });
                 }
             });
@@ -247,6 +279,7 @@ export class CorreParaibaProvider implements ProviderScraper {
                         title,
                         detailUrl,
                         imageUrl: null,
+                        location: null,
                     });
                 }
             }
@@ -319,12 +352,31 @@ export class CorreParaibaProvider implements ProviderScraper {
                 };
             });
 
-            // Parse location first to check state filter
-            let { city, state } = this.parseLocation(details.locationText);
+            // Parse location - FIRST try from rawEvent.location (from listing page)
+            // This is more reliable as it contains "CITY - ST" format
+            let city: string | null = null;
+            let state: string | null = null;
 
-            // Fallback: try to extract state from title (e.g., "CORRIDA - RN", "UIRAÚNA -PB")
+            // Priority 1: Use location from listing page (e.g., "IRACEMA - CE", "DIAMANTE-PB")
+            if (rawEvent.location) {
+                const parsed = this.parseLocation(rawEvent.location);
+                city = parsed.city;
+                state = parsed.state;
+                if (state) {
+                    providerLog(PROVIDER_NAME, `Got state ${state} from listing location: ${rawEvent.location}`, 'debug');
+                }
+            }
+
+            // Priority 2: Try from detail page locationText
+            if (!state && details.locationText) {
+                const parsed = this.parseLocation(details.locationText);
+                if (!city) city = parsed.city;
+                if (parsed.state) state = parsed.state;
+            }
+
+            // Priority 3: try to extract state from title (e.g., "CORRIDA - RN", "UIRAÚNA -PB")
             if (!state) {
-                const titleStateMatch = rawEvent.title.match(/[-–]\s*([A-Z]{2})\s*$/);
+                const titleStateMatch = rawEvent.title.match(/[-–]\s*([A-Z]{2})\s*$/i);
                 if (titleStateMatch) {
                     state = titleStateMatch[1].toUpperCase();
                 } else {
@@ -333,6 +385,15 @@ export class CorreParaibaProvider implements ProviderScraper {
                     if (anyStateMatch) {
                         state = anyStateMatch[1].toUpperCase();
                     }
+                }
+            }
+
+            // Priority 4: Infer state from known PB cities (SOUSA, PATOS, etc.)
+            if (!state && city) {
+                const normalizedCity = city.toUpperCase().trim();
+                if (KNOWN_PB_CITIES.has(normalizedCity)) {
+                    state = 'PB';
+                    providerLog(PROVIDER_NAME, `Inferred state PB from known city: ${city}`, 'debug');
                 }
             }
 
@@ -426,16 +487,51 @@ export class CorreParaibaProvider implements ProviderScraper {
             return { city: null, state: null };
         }
 
-        // Pattern: "CITY - ST" (common in this site)
-        const match = locationText.match(/^(.+?)\s*[-–]\s*([A-Z]{2})$/i);
-        if (match) {
+        // Normalize: trim whitespace
+        const normalized = locationText.trim();
+
+        // Valid Brazilian state codes
+        const validStates = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO',
+            'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN',
+            'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
+
+        // Pattern 1: "CITY - ST" or "CITY – ST" (with spaces around dash/endash)
+        let match = normalized.match(/^(.+?)\s*[-–]\s*([A-Z]{2})$/i);
+        if (match && validStates.includes(match[2].toUpperCase())) {
             return {
                 city: match[1].trim(),
                 state: match[2].toUpperCase(),
             };
         }
 
-        return { city: locationText, state: null };
+        // Pattern 2: "CITY/ST" (with slash)
+        match = normalized.match(/^(.+?)\s*\/\s*([A-Z]{2})$/i);
+        if (match && validStates.includes(match[2].toUpperCase())) {
+            return {
+                city: match[1].trim(),
+                state: match[2].toUpperCase(),
+            };
+        }
+
+        // Pattern 3: "CITYST" or "CITY ST" (no separator or just space, state at end)
+        match = normalized.match(/^(.+?)\s+([A-Z]{2})$/i);
+        if (match && validStates.includes(match[2].toUpperCase())) {
+            return {
+                city: match[1].trim(),
+                state: match[2].toUpperCase(),
+            };
+        }
+
+        // Pattern 4: "CITY-ST" (dash directly, like DIAMANTE-PB)
+        match = normalized.match(/^([A-Za-zÀ-ú\s]+)-([A-Z]{2})$/i);
+        if (match && validStates.includes(match[2].toUpperCase())) {
+            return {
+                city: match[1].trim(),
+                state: match[2].toUpperCase(),
+            };
+        }
+
+        return { city: normalized, state: null };
     }
 
     private extractEventId(url: string): string | null {

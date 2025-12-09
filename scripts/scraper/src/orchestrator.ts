@@ -108,10 +108,12 @@ export function getProvidersToExecute(
 ): ProviderScraper[] {
     let providers = [...registry];
 
-    // Filter by specific provider if requested
+    // Filter by specific provider(s) if requested
+    // Supports comma-separated list: --provider=correparaiba,race83
     if (options.providerName) {
+        const requestedProviders = options.providerName.toLowerCase().split(',').map(p => p.trim());
         providers = providers.filter(
-            p => p.getName().toLowerCase() === options.providerName!.toLowerCase()
+            p => requestedProviders.includes(p.getName().toLowerCase())
         );
     }
 

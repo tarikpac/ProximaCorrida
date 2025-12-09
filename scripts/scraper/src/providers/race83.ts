@@ -22,6 +22,91 @@ const PROVIDER_PRIORITY = 7;
 
 const LISTING_URL = 'https://www.race83.com.br/eventos';
 
+// Default state for this regional provider (Paraíba/Pernambuco focused)
+const DEFAULT_STATE = 'PB';
+
+// Known cities by state - used when state is not explicit in the event
+const KNOWN_CITIES_BY_STATE: Record<string, string[]> = {
+    'PB': [
+        'JOAO PESSOA', 'JOÃO PESSOA', 'CAMPINA GRANDE', 'PATOS', 'SOUSA', 'SOUZA',
+        'CAJAZEIRAS', 'BAYEUX', 'SANTA RITA', 'CABEDELO', 'GUARABIRA', 'ESPERANCA',
+        'ESPERANÇA', 'MAMANGUAPE', 'POMBAL', 'MONTEIRO', 'PICUI', 'PICUÍ', 'CUITÉ',
+        'ITAPORANGA', 'SAO BENTO', 'SÃO BENTO', 'PIANCO', 'PIANCÓ', 'PRINCESA ISABEL',
+        'AREIA', 'BANANEIRAS', 'SOLÂNEA', 'SOLANEA', 'ALAGOA GRANDE',
+        'ALAGOINHA', 'ALAGOA NOVA', 'UIRAÚNA', 'UIRAUNA', 'QUEIMADAS', 'LAGOA SECA',
+        'PUXINANÃ', 'PUXINANA', 'MASSARANDUBA', 'SERRA BRANCA', 'SUMÉ', 'SUME',
+        'TEIXEIRA', 'TAPEROÁ', 'TAPEROA', 'DIAMANTE', 'CATOLE DO ROCHA', 'CATOLÉ DO ROCHA',
+        'SAO JOAO DO RIO DO PEIXE', 'SÃO JOÃO DO RIO DO PEIXE', 'AGUA BRANCA', 'ÁGUA BRANCA',
+        'COREMAS', 'PEDRAS DE FOGO', 'CONDE', 'PITIMBU', 'LUCENA', 'RIO TINTO',
+        'SANTA LUZIA', 'PRATA', 'OURO VELHO', 'CONGO', 'CARAÚBAS', 'CARAUBAS',
+        'JUAZEIRINHO', 'SAO JOSE DE PIRANHAS', 'SÃO JOSÉ DE PIRANHAS'
+    ],
+    'PE': [
+        'RECIFE', 'OLINDA', 'JABOATAO', 'JABOATÃO', 'CARUARU', 'PETROLINA',
+        'PAULISTA', 'GARANHUNS', 'VITORIA DE SANTO ANTAO', 'VITÓRIA DE SANTO ANTÃO',
+        'IGARASSU', 'CABO DE SANTO AGOSTINHO', 'IPOJUCA', 'ABREU E LIMA',
+        'SAO LOURENCO DA MATA', 'SÃO LOURENÇO DA MATA', 'ARCOVERDE', 'SERRA TALHADA',
+        'GRAVATA', 'GRAVATÁ', 'BEZERROS', 'CARPINA', 'GOIANA', 'LIMOEIRO',
+        'PALMARES', 'ESCADA', 'BELO JARDIM', 'PESQUEIRA', 'SALGUEIRO', 'ARARIPINA'
+    ],
+    'RN': [
+        'NATAL', 'MOSSORO', 'MOSSORÓ', 'PARNAMIRIM', 'SAO GONCALO DO AMARANTE',
+        'SÃO GONÇALO DO AMARANTE', 'CEARA MIRIM', 'CEARÁ MIRIM', 'MACAIBA', 'MACAÍBA',
+        'CAICO', 'CAICÓ', 'CURRAIS NOVOS', 'SANTA CRUZ', 'NOVA CRUZ',
+        'JOAO CAMARA', 'JOÃO CÂMARA', 'PATU', 'MARTINS', 'APODI', 'PAU DOS FERROS',
+        'ALEXANDRIA', 'ASSÚ', 'ACU', 'ÁGUA NOVA', 'AGUA NOVA', 'TIBAU DO SUL',
+        'PIPA', 'SAO MIGUEL DO GOSTOSO', 'SÃO MIGUEL DO GOSTOSO', 'TOUROS', 'EXTREMOZ'
+    ],
+    'CE': [
+        'FORTALEZA', 'CAUCAIA', 'JUAZEIRO DO NORTE', 'MARACANAU', 'MARACANAÚ',
+        'SOBRAL', 'CRATO', 'ITAPIPOCA', 'MARANGUAPE', 'IGUATU', 'QUIXADA', 'QUIXADÁ',
+        'PACATUBA', 'AQUIRAZ', 'CANINDE', 'CANINDÉ', 'RUSSAS', 'TIANGUA', 'TIANGUÁ',
+        'LIMOEIRO DO NORTE', 'CRATEUS', 'CRATEÚS', 'ARACATI', 'ICAPUI', 'ICAPUÍ',
+        'JERICOACOARA', 'BEBERIBE', 'EUSEBIO', 'EUSÉBIO', 'HORIZONTE', 'PACAJUS'
+    ],
+    'AL': [
+        'MACEIO', 'MACEIÓ', 'ARAPIRACA', 'RIO LARGO', 'PALMEIRA DOS INDIOS',
+        'PALMEIRA DOS ÍNDIOS', 'PENEDO', 'SAO MIGUEL DOS CAMPOS', 'SÃO MIGUEL DOS CAMPOS',
+        'MARECHAL DEODORO', 'DELMIRO GOUVEIA', 'CORURIPE', 'SANTANA DO IPANEMA',
+        'MARAGOGI', 'BARRA DE SAO MIGUEL', 'BARRA DE SÃO MIGUEL', 'PILAR'
+    ],
+    'SE': [
+        'ARACAJU', 'NOSSA SENHORA DO SOCORRO', 'LAGARTO', 'SAO CRISTOVAO',
+        'SÃO CRISTÓVÃO', 'ESTANCIA', 'ESTÂNCIA', 'TOBIAS BARRETO', 'SIMAO DIAS',
+        'SIMÃO DIAS', 'CAPELA', 'PROPRIÁ', 'PROPRIA', 'BARRA DOS COQUEIROS'
+    ],
+    'BA': [
+        'SALVADOR', 'FEIRA DE SANTANA', 'VITORIA DA CONQUISTA', 'VITÓRIA DA CONQUISTA',
+        'CAMACARI', 'CAMAÇARI', 'ITABUNA', 'JUAZEIRO', 'LAURO DE FREITAS', 'ILHEUS',
+        'ILHÉUS', 'JEQUIE', 'JEQUIÉ', 'TEIXEIRA DE FREITAS', 'ALAGOINHAS', 'BARREIRAS',
+        'PORTO SEGURO', 'SIMOES FILHO', 'SIMÕES FILHO', 'PAULO AFONSO', 'EUNAPOLIS',
+        'EUNÁPOLIS', 'SANTO ANTONIO DE JESUS', 'SANTO ANTÔNIO DE JESUS', 'VALENCA', 'VALENÇA'
+    ],
+    'MA': [
+        'SAO LUIS', 'SÃO LUÍS', 'IMPERATRIZ', 'SAO JOSE DE RIBAMAR', 'SÃO JOSÉ DE RIBAMAR',
+        'TIMON', 'CAXIAS', 'CODÓ', 'CODO', 'PACO DO LUMIAR', 'PAÇO DO LUMIAR',
+        'ACAILANDIA', 'AÇAILÂNDIA', 'BACABAL', 'BALSAS', 'SANTA INES', 'SANTA INÊS',
+        'BARREIRINHAS', 'CHAPADINHA', 'PINHEIRO', 'CAROLINA'
+    ],
+    'PI': [
+        'TERESINA', 'PARNAIBA', 'PARNAÍBA', 'PICOS', 'PIRIPIRI', 'FLORIANO',
+        'CAMPO MAIOR', 'BARRAS', 'UNIÃO', 'UNIAO', 'ALTOS', 'PEDRO II',
+        'ESPERANTINA', 'OEIRAS', 'SAO RAIMUNDO NONATO', 'SÃO RAIMUNDO NONATO',
+        'CORRENTE', 'BOM JESUS', 'LUÍS CORREIA', 'LUIS CORREIA'
+    ]
+};
+
+// Helper function to find state from city name
+function inferStateFromCity(cityName: string): string | null {
+    const normalized = cityName.toUpperCase().trim();
+    for (const [state, cities] of Object.entries(KNOWN_CITIES_BY_STATE)) {
+        if (cities.some(city => normalized === city || normalized.includes(city) || city.includes(normalized))) {
+            return state;
+        }
+    }
+    return null;
+}
+
 interface RawEventCard {
     title: string;
     detailUrl: string;
@@ -124,19 +209,98 @@ export class Race83Provider implements ProviderScraper {
     }
 
     private async extractEventCards(page: Page): Promise<RawEventCard[]> {
-        // Race83 structure: Events are shown as blocks with date, title, location, and INSCREVA-SE button
-        // The structure from debug shows patterns like:
-        // DD/MM/YYYY
-        // EVENT TITLE
-        // CITY - ST
-        // INSCREVA-SE
+        // Race83 HTML structure (from user's sample):
+        // <div class="element">
+        //   <div class="blckbox"><h6 class="number">21/12/2025</h6></div>
+        //   <figure class="zoom"><a href="evento/..."><img ...></a></figure>
+        //   <p class="name title-event"> Corrida Do Choqueano</p>
+        //   <p> <i class="fa fa-map-marker"></i>  JOÃO PESSOA  - PB</p>
+        //   <div id="visualizar"><a href="evento/..."><button>INSCREVA-SE</button></a></div>
+        // </div>
 
-        // Get all page text and parse it
+        const events = await page.$$eval('.element', (elements) => {
+            const results: Array<{
+                title: string;
+                detailUrl: string;
+                dateStr: string;
+                location: string;
+                imageUrl: string | null;
+            }> = [];
+            const seen = new Set<string>();
+
+            elements.forEach((el) => {
+                try {
+                    // Extract date from h6.number
+                    const dateEl = el.querySelector('h6.number, .blckbox h6');
+                    const dateStr = dateEl?.textContent?.trim() || '';
+
+                    // Extract title from p.name or p.title-event
+                    const titleEl = el.querySelector('p.name, p.title-event, .title-event');
+                    const title = titleEl?.textContent?.trim() || '';
+
+                    // Extract location from p with map-marker icon
+                    let location = '';
+                    const allParagraphs = el.querySelectorAll('p');
+                    allParagraphs.forEach((p) => {
+                        const hasMapMarker = p.querySelector('i.fa-map-marker, i[class*="map"]');
+                        if (hasMapMarker) {
+                            location = p.textContent?.trim() || '';
+                        }
+                    });
+
+                    // Extract detail URL from anchor
+                    // First try race83 internal links, then fall back to any link
+                    let anchor = el.querySelector('a[href*="evento"]') as HTMLAnchorElement;
+                    if (!anchor) {
+                        // Fall back to any link (for external events like circuitodasestacoes, ticketsports)
+                        anchor = el.querySelector('a[href*="http"]') as HTMLAnchorElement;
+                    }
+                    let detailUrl = anchor?.href || '';
+
+                    // Normalize URL (remove /login/ if present)
+                    if (detailUrl) {
+                        detailUrl = detailUrl.replace('/login/', '/evento/');
+                    }
+
+                    // Extract image
+                    const img = el.querySelector('img') as HTMLImageElement;
+                    const imageUrl = img?.src || null;
+
+                    // Create unique key for deduplication
+                    const key = `${title}|${dateStr}|${detailUrl}`;
+
+                    if (title && title.length > 3 && dateStr && !seen.has(key)) {
+                        seen.add(key);
+                        results.push({
+                            title,
+                            detailUrl,
+                            dateStr,
+                            location,
+                            imageUrl,
+                        });
+                    }
+                } catch {
+                    // Skip malformed elements
+                }
+            });
+
+            return results;
+        });
+
+        // Fallback: if no events found with DOM parsing, try text-based extraction
+        if (events.length === 0) {
+            return this.extractEventCardsFromText(page);
+        }
+
+        return events;
+    }
+
+    private async extractEventCardsFromText(page: Page): Promise<RawEventCard[]> {
+        // Fallback text-based extraction for older page structures
         const pageData = await page.evaluate(() => {
             const bodyText = document.body.innerText;
-
-            // Get all INSCREVA-SE links
             const inscrevaLinks: Array<{ href: string, text: string }> = [];
+
             document.querySelectorAll('a').forEach((a) => {
                 const text = a.textContent?.trim().toUpperCase() || '';
                 if (text.includes('INSCREVA') && a.href.includes('race83.com.br')) {
@@ -148,93 +312,39 @@ export class Race83Provider implements ProviderScraper {
         });
 
         const events: RawEventCard[] = [];
-
-        // Parse events from body text using pattern matching
-        // Pattern: DD/MM/YYYY\n\nTITLE\n\n CITY - ST\n\nINSCREVA-SE
         const lines = pageData.bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
-
-            // Look for date pattern
             const dateMatch = line.match(/^(\d{1,2}\/\d{1,2}\/\d{4})$/);
             if (!dateMatch) continue;
 
             const dateStr = dateMatch[1];
-
-            // Next non-empty lines should be: title, location, INSCREVA-SE
             let title = '';
             let location = '';
 
             for (let j = i + 1; j < Math.min(i + 6, lines.length); j++) {
                 const nextLine = lines[j];
-
-                if (nextLine.toUpperCase().includes('INSCREVA')) {
-                    break; // We've hit the button, stop looking
-                }
-
-                // Skip lines that contain navigation words
+                if (nextLine.toUpperCase().includes('INSCREVA')) break;
                 if (nextLine.toUpperCase().includes('INSCRIÇÃO')) continue;
 
-                // Valid Brazilian state codes for Race83 (Nordeste focus)
-                const validStates = ['PB', 'PE', 'RN', 'CE', 'BA', 'AL', 'SE', 'MA', 'PI',
-                    'SP', 'RJ', 'MG', 'ES', 'SC', 'PR', 'RS', 'GO', 'DF'];
-
-                // Check if it's a location (pattern: CITY - ST)
                 const locationMatch = nextLine.match(/^(.+?)\s*[-–]\s*([A-Z]{2})\s*$/i);
-                if (locationMatch) {
-                    const potentialState = locationMatch[2].toUpperCase();
-                    // Only accept if the state is valid AND the city part doesn't contain INSCREVA
-                    if (validStates.includes(potentialState) &&
-                        !locationMatch[1].toUpperCase().includes('INSCREVA')) {
-                        if (!title) {
-                            // This might be title if no title yet
-                            title = nextLine;
-                        } else {
-                            // This is location
-                            location = nextLine;
-                        }
-                    }
+                if (locationMatch && !title) {
+                    title = nextLine;
+                } else if (locationMatch) {
+                    location = nextLine;
                 } else if (!title && nextLine.length > 5 && !nextLine.match(/^\d/)) {
-                    // This is the title
                     title = nextLine;
                 } else if (title && !location && nextLine.length > 3) {
-                    // This might be location if it follows the pattern
                     location = nextLine;
                 }
             }
 
             if (title && title.length > 5) {
-                // Find matching INSCREVA-SE link
                 const eventSlug = this.slugify(title);
-                let detailUrl = '';
+                let detailUrl = `https://www.race83.com.br/evento/2025/corrida-de-rua/${eventSlug}`;
 
-                for (const link of pageData.inscrevaLinks) {
-                    // Match by title similarity in URL
-                    const urlLower = link.href.toLowerCase();
-                    const titleLower = title.toLowerCase();
-                    const titleWords = titleLower.split(/\s+/).filter(w => w.length > 3);
-
-                    // Check if URL contains key words from title
-                    const matches = titleWords.filter(w => urlLower.includes(w.replace(/[^a-z]/g, '')));
-                    if (matches.length >= 2 || (titleWords.length === 1 && matches.length === 1)) {
-                        detailUrl = link.href.replace('/login/', '/evento/');
-                        break;
-                    }
-                }
-
-                // Fallback: create URL from title
-                if (!detailUrl) {
-                    detailUrl = `https://www.race83.com.br/evento/2025/corrida-de-rua/${eventSlug}`;
-                }
-
-                events.push({
-                    title,
-                    detailUrl,
-                    dateStr,
-                    location,
-                    imageUrl: null,
-                });
+                events.push({ title, detailUrl, dateStr, location, imageUrl: null });
             }
         }
 
@@ -251,12 +361,94 @@ export class Race83Provider implements ProviderScraper {
             .trim();
     }
 
+    /**
+     * Process external events (from ticketsports, circuitodasestacoes, etc.)
+     * Uses only the data extracted from the listing page
+     */
+    private processExternalEvent(
+        rawEvent: RawEventCard,
+        states: string[] | undefined
+    ): StandardizedEvent | null {
+        // Parse location from rawEvent.location (e.g., "JOÃO PESSOA - PB")
+        let city = '';
+        let state = '';
+
+        if (rawEvent.location) {
+            const locMatch = rawEvent.location.match(/^(.+?)\s*[-–]\s*([A-Z]{2})\s*$/i);
+            if (locMatch) {
+                city = locMatch[1].trim();
+                state = locMatch[2].toUpperCase();
+            }
+        }
+
+        // If no state found, try to infer from known cities
+        if (!state && city) {
+            const inferredState = inferStateFromCity(city);
+            if (inferredState) {
+                state = inferredState;
+            }
+        }
+
+        // Default state for this regional provider
+        if (!state) {
+            state = DEFAULT_STATE;
+        }
+
+        // Check state filter
+        if (states && states.length > 0) {
+            if (!states.includes(state)) {
+                providerLog(PROVIDER_NAME, `Skipping external event in ${state} (not in filter)`, 'debug');
+                return null;
+            }
+        }
+
+        // Parse date
+        const date = this.parseDate(rawEvent.dateStr);
+        if (!date) {
+            providerLog(PROVIDER_NAME, `Could not parse date for external event: ${rawEvent.title}`, 'warn');
+            return null;
+        }
+
+        // Generate event ID from title
+        const eventId = rawEvent.title
+            .toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .substring(0, 50);
+
+        const event: StandardizedEvent = {
+            title: rawEvent.title,
+            date,
+            city: city || null,
+            state,
+            distances: [],
+            regUrl: rawEvent.detailUrl,
+            imageUrl: rawEvent.imageUrl,
+            sourceUrl: rawEvent.detailUrl,
+            sourcePlatform: PROVIDER_NAME,
+            sourceEventId: eventId,
+            priceText: null,
+            priceMin: null,
+        };
+
+        return event;
+    }
+
     private async processEventDetail(
         context: BrowserContext,
         rawEvent: RawEventCard,
         states: string[] | undefined,
         options: ProviderScraperOptions
     ): Promise<StandardizedEvent | null> {
+        // Check if this is an external URL (not from race83)
+        const isExternalUrl = rawEvent.detailUrl && !rawEvent.detailUrl.includes('race83.com.br');
+
+        // For external URLs, use the data from the listing page directly
+        if (isExternalUrl) {
+            return this.processExternalEvent(rawEvent, states);
+        }
+
         const page = await context.newPage();
 
         try {
@@ -267,9 +459,37 @@ export class Race83Provider implements ProviderScraper {
             const details = await page.evaluate(() => {
                 const bodyText = document.body.innerText;
 
-                // Title - often in h1 or prominent text
+                // Title - on Race83, the event title is typically in h3, not h1 (h1 is the site logo)
+                const h3 = document.querySelector('h3');
+                const h2 = document.querySelector('h2');
                 const h1 = document.querySelector('h1');
-                let title = h1?.textContent?.trim() || '';
+
+                let title = '';
+
+                // Try h3 first (most common for event title)
+                if (h3) {
+                    const h3Text = h3.textContent?.trim() || '';
+                    // Skip if it's just "Preços" or other section headers
+                    if (h3Text.length > 5 && !h3Text.includes('Preços') && !h3Text.includes('Documentos')) {
+                        title = h3Text;
+                    }
+                }
+
+                // Try h2 if h3 didn't work
+                if (!title && h2) {
+                    const h2Text = h2.textContent?.trim() || '';
+                    if (h2Text.length > 5) {
+                        title = h2Text;
+                    }
+                }
+
+                // Try h1 if nothing else worked (but filter out site name)
+                if (!title && h1) {
+                    const h1Text = h1.textContent?.trim() || '';
+                    if (h1Text.length > 5 && !h1Text.includes('Race83')) {
+                        title = h1Text;
+                    }
+                }
 
                 if (!title) {
                     // Try to find title from page title
@@ -282,8 +502,9 @@ export class Race83Provider implements ProviderScraper {
 
                 // Try to extract from known location pattern at end of text block
                 // Pattern examples: "JOÃO PESSOA - PB", "CAMPINA GRANDE-PB"
+                // IMPORTANT: Must exclude "INSCREVA-SE" which would match SE (Sergipe)
                 const locationPatterns = [
-                    /([A-Za-zÀ-ú\s]+)\s*[-–]\s*(PB|PE|RN|CE|BA|AL|SE|MA|PI)(?:\s|$)/,
+                    /([A-Za-zÀ-ú\s]+)\s*[-–]\s*(PB|PE|RN|CE|BA|AL|MA|PI)(?:\s|$)/,  // Removed SE from first pattern
                     /CIDADE[:\s]+([^,\n-]+)[-,\s]+([A-Z]{2})/i,
                     /LOCAL[:\s]+([^,\n-]+)[-,\s]+([A-Z]{2})/i,
                 ];
@@ -291,6 +512,11 @@ export class Race83Provider implements ProviderScraper {
                 for (const pattern of locationPatterns) {
                     const match = bodyText.match(pattern);
                     if (match) {
+                        const potentialCity = match[1].trim().toUpperCase();
+                        // Skip if it looks like "INSCREVA" (from INSCREVA-SE)
+                        if (potentialCity.includes('INSCREVA') || potentialCity.includes('INSCRI')) {
+                            continue;
+                        }
                         city = match[1].trim();
                         state = match[2].toUpperCase();
                         break;
@@ -344,7 +570,7 @@ export class Race83Provider implements ProviderScraper {
             });
 
             // Use rawEvent.location as fallback for state if available
-            // Format: "JOÃO PESSOA - PB" or " JOÃO PESSOA - PB"
+            // Format: "JOÃO PESSOA - PB" or " JOÃO PESSOA - PB" (with leading space)
             let finalCity = details.city;
             let finalState = details.state;
 
@@ -353,15 +579,20 @@ export class Race83Provider implements ProviderScraper {
                 'SP', 'RJ', 'MG', 'ES', 'SC', 'PR', 'RS', 'GO', 'DF',
                 'AC', 'AM', 'AP', 'MT', 'MS', 'PA', 'RO', 'RR', 'TO'];
 
-            // Validate that the state from details is valid and not from INSCREVA-SE
+            // Validate that the state from details is valid
             if (finalState && !validStates.includes(finalState)) {
                 finalState = '';
             }
 
+            // Try to extract from rawEvent.location if no state yet
             if (!finalState && rawEvent.location) {
+                // Normalize: remove extra spaces, trim
+                const normalizedLoc = rawEvent.location.trim().replace(/\s+/g, ' ');
+
                 // Don't parse if location contains INSCREVA
-                if (!rawEvent.location.toUpperCase().includes('INSCREVA')) {
-                    const locMatch = rawEvent.location.match(/(.+?)\s*[-–]\s*([A-Z]{2})\s*$/i);
+                if (!normalizedLoc.toUpperCase().includes('INSCREVA')) {
+                    // Pattern: "CITY - ST" with optional multiple spaces
+                    const locMatch = normalizedLoc.match(/^(.+?)\s*[-–]\s*([A-Z]{2})\s*$/i);
                     if (locMatch) {
                         const potentialState = locMatch[2].toUpperCase();
                         if (validStates.includes(potentialState)) {
@@ -372,13 +603,23 @@ export class Race83Provider implements ProviderScraper {
                 }
             }
 
+            // Fallback 2: Check if city is a known city from any Nordeste state
+            if (!finalState && finalCity) {
+                const inferredState = inferStateFromCity(finalCity);
+                if (inferredState) {
+                    finalState = inferredState;
+                    providerLog(PROVIDER_NAME, `Inferred state ${finalState} from known city: ${finalCity}`, 'debug');
+                }
+            }
+
+            // Fallback 3: Default to PB for this regional provider
+            if (!finalState) {
+                finalState = DEFAULT_STATE;
+                providerLog(PROVIDER_NAME, `Using default state ${DEFAULT_STATE} for: ${rawEvent.title}`, 'debug');
+            }
+
             // Check state filter
             if (states && states.length > 0) {
-                if (!finalState) {
-                    providerLog(PROVIDER_NAME, `Skipping event with unknown state: ${rawEvent.title}`, 'debug');
-                    await closePage(page);
-                    return null;
-                }
                 if (!states.includes(finalState)) {
                     providerLog(PROVIDER_NAME, `Skipping event in ${finalState} (not in filter)`, 'debug');
                     await closePage(page);
@@ -397,8 +638,13 @@ export class Race83Provider implements ProviderScraper {
             // Extract price
             const priceResult = extractPriceWithHeuristics(details.bodyText);
 
+            // Use rawEvent.title if details.title is just the site name
+            const finalTitle = (details.title && details.title !== 'Race83')
+                ? details.title
+                : rawEvent.title;
+
             const event: StandardizedEvent = {
-                title: details.title || rawEvent.title,
+                title: finalTitle,
                 date,
                 city: finalCity || null,
                 state: finalState || null,
