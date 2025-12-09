@@ -29,6 +29,9 @@ COPY apps/api/ .
 # Build the NestJS application
 RUN npm run build
 
+# Prune dev dependencies after build (keeps prisma CLI which we need for migrations)
+# Note: We keep all deps to avoid missing wasm/binary issues
+
 # -----------------------------------------------------------------------------
 # Stage 2: Production
 # -----------------------------------------------------------------------------
@@ -39,21 +42,10 @@ WORKDIR /app
 # Install only production runtime dependencies
 RUN apk add --no-cache openssl
 
-# Copy package files
+# Copy everything needed from builder (simpler, more reliable)
 COPY --from=builder /app/package*.json ./
-
-# Install production dependencies only
-RUN npm ci --omit=dev --legacy-peer-deps
-
-# Copy Prisma schema and generated client
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-# Copy Prisma CLI from builder (it's in devDependencies)
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
-
-# Copy compiled application
 COPY --from=builder /app/dist ./dist
 
 # Set environment
@@ -66,5 +58,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-8000}/ || exit 1
 
-# Start: Run migrations then start the app (use installed prisma, not npx)
-CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node dist/src/main"]
+# Start: Run migrations then start the app
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/src/main"]
