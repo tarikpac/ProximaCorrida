@@ -43,7 +43,7 @@ RUN apk add --no-cache openssl
 COPY --from=builder /app/package*.json ./
 
 # Install production dependencies only
-RUN npm ci --only=production
+RUN npm ci --omit=dev --legacy-peer-deps
 
 # Copy Prisma schema and generated client
 COPY --from=builder /app/prisma ./prisma
