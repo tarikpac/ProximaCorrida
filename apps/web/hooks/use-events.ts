@@ -42,25 +42,13 @@ async function fetchEvents(filters: ReturnType<typeof useEventFilters>['filters'
     params.append("page", filters.page.toString());
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
-    const url = `${API_URL}/events?${params.toString()}`;
-    console.log('[DEBUG] Fetching events from:', url);
+    const res = await fetch(`${API_URL}/events?${params.toString()}`);
 
-    try {
-        const res = await fetch(url);
-        console.log('[DEBUG] Response status:', res.status);
-
-        if (!res.ok) {
-            console.error('[DEBUG] Response not OK:', res.status, res.statusText);
-            throw new Error('Failed to fetch events');
-        }
-
-        const json = await res.json();
-        console.log('[DEBUG] Response data count:', json?.data?.length || 0);
-        return json;
-    } catch (error) {
-        console.error('[DEBUG] Fetch error:', error);
-        throw error;
+    if (!res.ok) {
+        throw new Error('Failed to fetch events');
     }
+
+    return res.json();
 }
 
 export function useEvents() {
