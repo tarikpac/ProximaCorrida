@@ -19,7 +19,7 @@ import {
     correParaibaProvider,
     race83Provider,
 } from './providers';
-import { deduplicateEvents, fuzzyDeduplicateEvents, logDeduplicationSummary, DeduplicationResult } from './utils/deduplication';
+import { deduplicateEvents, fuzzyDeduplicateEvents, deduplicateByRegUrl, logDeduplicationSummary, DeduplicationResult } from './utils/deduplication';
 import { emptyResult, mergeResults } from './providers/base';
 
 /**
@@ -251,21 +251,26 @@ export async function orchestrateProviders(
     const fuzzyResult = fuzzyDeduplicateEvents(deduplicationResult.events, 0.7);
     logDeduplicationSummary(fuzzyResult, 'Fuzzy');
 
+    // Deduplicate events - Pass 3: Same registration URL
+    log('\n--- Deduplicating events (Pass 3: Same RegUrl) ---');
+    const regUrlResult = deduplicateByRegUrl(fuzzyResult.events);
+    logDeduplicationSummary(regUrlResult, 'RegUrl');
+
     const totalDurationMs = Date.now() - startTime;
 
     // Calculate summary
     const successfulProviders = providerResults.filter(r => !r.error).length;
     const failedProviders = providerResults.filter(r => !!r.error).length;
 
-    const totalDuplicatesRemoved = deduplicationResult.duplicatesRemoved + fuzzyResult.duplicatesRemoved;
+    const totalDuplicatesRemoved = deduplicationResult.duplicatesRemoved + fuzzyResult.duplicatesRemoved + regUrlResult.duplicatesRemoved;
 
     const result: OrchestratorResult = {
-        events: fuzzyResult.events,
+        events: regUrlResult.events,
         providerResults,
         deduplication: {
-            events: fuzzyResult.events,
+            events: regUrlResult.events,
             duplicatesRemoved: totalDuplicatesRemoved,
-            duplicateDetails: [...deduplicationResult.duplicateDetails, ...fuzzyResult.duplicateDetails],
+            duplicateDetails: [...deduplicationResult.duplicateDetails, ...fuzzyResult.duplicateDetails, ...regUrlResult.duplicateDetails],
         },
         totalDurationMs,
         summary: {
@@ -273,7 +278,7 @@ export async function orchestrateProviders(
             successfulProviders,
             failedProviders,
             totalEventsBeforeDedup: allEvents.length,
-            totalEventsAfterDedup: fuzzyResult.events.length,
+            totalEventsAfterDedup: regUrlResult.events.length,
             duplicatesRemoved: totalDuplicatesRemoved,
         },
     };

@@ -99,6 +99,105 @@ export function deduplicateEvents(events: StandardizedEvent[]): DeduplicationRes
 }
 
 /**
+ * Deduplicate events by registration URL
+ * If two events have the same regUrl, they are definitely the same event
+ * regardless of title differences
+ * 
+ * @param events - Events to deduplicate
+ * @returns Deduplicated events
+ */
+export function deduplicateByRegUrl(events: StandardizedEvent[]): DeduplicationResult {
+    const seen = new Map<string, StandardizedEvent>();
+    const duplicateMap = new Map<string, DuplicateInfo>();
+
+    for (const event of events) {
+        // Normalize regUrl for comparison (remove trailing slashes, query params variations)
+        const regUrl = normalizeUrl(event.regUrl || '');
+
+        // Skip if no regUrl
+        if (!regUrl) {
+            // Keep events without regUrl
+            seen.set(event.sourceUrl, event);
+            continue;
+        }
+
+        if (seen.has(regUrl)) {
+            // This is a duplicate by regUrl
+            const existing = duplicateMap.get(regUrl);
+
+            if (existing) {
+                existing.discardedEvents.push({
+                    title: event.title,
+                    sourcePlatform: event.sourcePlatform,
+                    sourceUrl: event.sourceUrl,
+                });
+            } else {
+                const keptEvent = seen.get(regUrl)!;
+                duplicateMap.set(regUrl, {
+                    matchKey: `regUrl:${regUrl.substring(0, 50)}...`,
+                    keptEvent: {
+                        title: keptEvent.title,
+                        sourcePlatform: keptEvent.sourcePlatform,
+                        sourceUrl: keptEvent.sourceUrl,
+                    },
+                    discardedEvents: [{
+                        title: event.title,
+                        sourcePlatform: event.sourcePlatform,
+                        sourceUrl: event.sourceUrl,
+                    }],
+                });
+            }
+        } else {
+            seen.set(regUrl, event);
+        }
+    }
+
+    const duplicatesRemoved = events.length - seen.size;
+
+    return {
+        events: Array.from(seen.values()),
+        duplicatesRemoved,
+        duplicateDetails: Array.from(duplicateMap.values()),
+    };
+}
+
+/**
+ * Normalize a URL for comparison
+ * - Removes trailing slashes
+ * - Lowercase hostname
+ * - Removes common tracking params
+ */
+function normalizeUrl(url: string): string {
+    if (!url) return '';
+
+    try {
+        const parsed = new URL(url);
+
+        // Remove common tracking params
+        ['utm_source', 'utm_medium', 'utm_campaign', 'fbclid', 'gclid'].forEach(param => {
+            parsed.searchParams.delete(param);
+        });
+
+        // Lowercase hostname
+        let normalized = parsed.origin.toLowerCase() + parsed.pathname;
+
+        // Remove trailing slash
+        normalized = normalized.replace(/\/$/, '');
+
+        // Add remaining query string if any
+        const qs = parsed.searchParams.toString();
+        if (qs) {
+            normalized += '?' + qs;
+        }
+
+        return normalized;
+    } catch {
+        // If URL is invalid, return as-is (lowercase, no trailing slash)
+        return url.toLowerCase().replace(/\/$/, '');
+    }
+}
+
+/**
  * Calculate Jaccard similarity between two sets of words
  * Returns a value between 0 and 1 (1 = identical)
  */
