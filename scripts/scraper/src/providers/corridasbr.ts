@@ -442,22 +442,37 @@ export class CorridasBRProvider implements ProviderScraper {
                     }
                 }
 
-                // Try to find image
+                // Try to find image on corridasbr page
                 const imgs = Array.from(document.querySelectorAll('img'));
                 let imageUrl: string | null = null;
+
+                // Blacklist known bad/generic images
+                const badImagePatterns = [
+                    /BC\d+\.jpg/i,       // BC1024.jpg - generic Balneário Camboriú image
+                    /LargeRectangle/i,   // LargeRectangle.gif - ad placeholder
+                    /logo/i,
+                    /banner.*site/i,
+                ];
+
                 for (const img of imgs) {
                     const src = (img as HTMLImageElement).src;
-                    // Skip small images and logos
-                    if (src.includes('banner') || src.includes('cartaz') || src.includes('corrida')) {
+
+                    // Skip if matches bad patterns
+                    if (badImagePatterns.some(p => p.test(src))) {
+                        continue;
+                    }
+
+                    // Look for event-related images
+                    if (src.includes('banner') || src.includes('cartaz') || src.includes('corrida') || src.includes('evento')) {
                         imageUrl = src;
                         break;
                     }
                 }
 
-                // Check og:image as fallback
+                // Check og:image as fallback (but also filter bad images)
                 if (!imageUrl) {
                     const ogImage = document.querySelector('meta[property="og:image"]') as HTMLMetaElement;
-                    if (ogImage?.content) {
+                    if (ogImage?.content && !badImagePatterns.some(p => p.test(ogImage.content))) {
                         imageUrl = ogImage.content;
                     }
                 }
@@ -473,19 +488,76 @@ export class CorridasBRProvider implements ProviderScraper {
                 };
             });
 
-            // If we have an external regUrl, try to fetch og:image from there
+            // If we have an external regUrl, try to fetch image from there
             let externalImageUrl: string | null = null;
             if (details.regUrl && !details.regUrl.includes('corridasbr.com.br')) {
                 try {
                     const externalPage = await context.newPage();
                     await externalPage.goto(details.regUrl, { timeout: options.detailTimeoutMs, waitUntil: 'domcontentloaded' });
-                    await externalPage.waitForTimeout(1500);
+                    await externalPage.waitForTimeout(2000);
 
-                    // Extract og:image from external page
+                    // Extract image from external page with multiple strategies
                     externalImageUrl = await externalPage.evaluate(() => {
+                        // Strategy 1: og:image meta tag (most reliable)
                         const ogImage = document.querySelector('meta[property="og:image"]') as HTMLMetaElement;
-                        return ogImage?.content || null;
+                        if (ogImage?.content) {
+                            return ogImage.content;
+                        }
+
+                        // Strategy 2: twitter:image meta tag
+                        const twitterImage = document.querySelector('meta[name="twitter:image"]') as HTMLMetaElement;
+                        if (twitterImage?.content) {
+                            return twitterImage.content;
+                        }
+
+                        // Strategy 3: Find largest image on page (likely the event banner)
+                        const images = Array.from(document.querySelectorAll('img'));
+                        let bestImage: HTMLImageElement | null = null;
+                        let bestScore = 0;
+
+                        for (const img of images) {
+                            const src = img.src || '';
+                            const width = img.naturalWidth || img.width || 0;
+                            const height = img.naturalHeight || img.height || 0;
+                            const area = width * height;
+
+                            // Skip small images, icons, logos
+                            if (width < 200 || height < 150 || area < 50000) continue;
+
+                            // Skip known bad patterns
+                            if (src.includes('logo') || src.includes('icon') || src.includes('avatar')) continue;
+                            if (src.includes('facebook') || src.includes('instagram') || src.includes('whatsapp')) continue;
+                            if (src.includes('loading') || src.includes('placeholder')) continue;
+
+                            // Prefer images with event-like keywords
+                            let score = area;
+                            if (src.includes('banner') || src.includes('cartaz') || src.includes('evento')) {
+                                score *= 2;
+                            }
+
+                            if (score > bestScore) {
+                                bestScore = score;
+                                bestImage = img;
+                            }
+                        }
+
+                        return bestImage?.src || null;
                     });
+
+                    // Validate the extracted image URL
+                    if (externalImageUrl) {
+                        // Blacklist known bad/generic images
+                        const badPatterns = [
+                            /corridasbrasil\.com.*BC\d+/i,  // Generic corridasbr images
+                            /placeholder/i,
+                            /default/i,
+                            /logo.*site/i,
+                        ];
+
+                        if (badPatterns.some(p => p.test(externalImageUrl!))) {
+                            externalImageUrl = null;
+                        }
+                    }
 
                     await closePage(externalPage);
                 } catch (err) {
