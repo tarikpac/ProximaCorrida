@@ -162,27 +162,70 @@ export function deduplicateByRegUrl(events: StandardizedEvent[]): DeduplicationR
 }
 
 /**
+ * Check if a URL is just a listing/category page (not an actual event)
+ * These should not be used for deduplication
+ */
+function isListingPage(url: string): boolean {
+    if (!url) return true;
+
+    const listingPatterns = [
+        /brasilquecorre\.com\/[a-z]+$/i,  // brasilquecorre.com/riograndedonorte
+        /brasilquecorre\.com\/estado\//i,
+        /corridasbr\.com\.br\/[a-z]{2}\/calendario/i,  // State calendar pages
+        /ticketsports\.com\.br\/eventos$/i,
+        /minhasinscricoes\.com\.br\/eventos$/i,
+    ];
+
+    return listingPatterns.some(pattern => pattern.test(url));
+}
+
+/**
  * Normalize a URL for comparison
+ * - Decodes URL encoding (+ and %20 both become space, then normalize)
+ * - Lowercase everything
  * - Removes trailing slashes
- * - Lowercase hostname
  * - Removes common tracking params
+ * - Extracts event ID for ticketsports URLs
  */
 function normalizeUrl(url: string): string {
     if (!url) return '';
 
+    // Skip listing pages
+    if (isListingPage(url)) return '';
+
     try {
-        const parsed = new URL(url);
+        // Decode URL-encoded characters first
+        let decoded = url;
+        try {
+            decoded = decodeURIComponent(url.replace(/\+/g, ' '));
+        } catch {
+            // If decode fails, continue with original
+        }
+
+        const parsed = new URL(decoded);
 
         // Remove common tracking params
         ['utm_source', 'utm_medium', 'utm_campaign', 'fbclid', 'gclid'].forEach(param => {
             parsed.searchParams.delete(param);
         });
 
-        // Lowercase hostname
-        let normalized = parsed.origin.toLowerCase() + parsed.pathname;
+        // For ticketsports, extract just the event ID (number at the end)
+        // This handles: CORRIDA+DA+VIRADA++2025-73536 vs corrida-da-virada-2025-73536
+        if (parsed.hostname.includes('ticketsports')) {
+            const eventIdMatch = parsed.pathname.match(/-(\d+)$/);
+            if (eventIdMatch) {
+                return `ticketsports:${eventIdMatch[1]}`;
+            }
+        }
 
-        // Remove trailing slash
-        normalized = normalized.replace(/\/$/, '');
+        // Lowercase and normalize the path
+        let normalizedPath = parsed.pathname
+            .toLowerCase()
+            .replace(/\s+/g, '-')  // Spaces to dashes
+            .replace(/-+/g, '-')   // Multiple dashes to single
+            .replace(/\/$/, '');   // Remove trailing slash
+
+        let normalized = parsed.origin.toLowerCase() + normalizedPath;
 
         // Add remaining query string if any
         const qs = parsed.searchParams.toString();

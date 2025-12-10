@@ -5,7 +5,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { StandardizedEvent } from './interfaces';
-import { cleanCityName, toTitleCase } from './utils/normalization';
+import { cleanCityName, toTitleCase, validateEventUrl } from './utils/normalization';
 
 let prisma: PrismaClient | null = null;
 
@@ -57,6 +57,8 @@ export async function upsertEvent(event: StandardizedEvent): Promise<UpsertResul
     const cleanCity = cleanCityName(event.city) || '';
     // Normalize title to Title Case
     const cleanTitle = toTitleCase(event.title);
+    // Validate regUrl - reject listing/category pages, fallback to sourceUrl
+    const validRegUrl = validateEventUrl(event.regUrl) || event.sourceUrl;
 
     // Check if event exists
     const existing = await db.event.findUnique({
@@ -74,7 +76,7 @@ export async function upsertEvent(event: StandardizedEvent): Promise<UpsertResul
                 city: cleanCity,
                 state: event.state ?? 'PB',
                 distances: event.distances,
-                regLink: event.regUrl ?? '',
+                regLink: validRegUrl,
                 imageUrl: event.imageUrl,
                 priceText: event.priceText,
                 priceMin: event.priceMin,
@@ -96,7 +98,7 @@ export async function upsertEvent(event: StandardizedEvent): Promise<UpsertResul
                 city: cleanCity,
                 state: event.state ?? 'PB',
                 distances: event.distances,
-                regLink: event.regUrl ?? '',
+                regLink: validRegUrl,
                 sourceUrl: event.sourceUrl,
                 sourcePlatform: event.sourcePlatform,
                 sourceEventId: event.sourceEventId,

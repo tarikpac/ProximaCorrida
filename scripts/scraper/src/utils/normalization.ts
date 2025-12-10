@@ -240,3 +240,28 @@ export function generateMatchKey(
 
     return `${normalizedTitle}|${dateStr}|${normalizedCity}|${normalizedState}`;
 }
+
+/**
+ * Check if a URL is a valid event page (not a listing/category page)
+ * Returns null if the URL is invalid, otherwise returns the cleaned URL
+ */
+export function validateEventUrl(url: string | null | undefined): string | null {
+    if (!url) return null;
+
+    // Patterns for listing/category pages that should be rejected
+    const listingPatterns = [
+        /brasilquecorre\.com\/[a-z]+$/i,  // brasilquecorre.com/riograndedonorte
+        /brasilquecorre\.com\/estado\//i,
+        /corridasbr\.com\.br\/[a-z]{2}\/calendario/i,  // State calendar pages
+        /ticketsports\.com\.br\/eventos$/i,
+        /minhasinscricoes\.com\.br\/eventos$/i,
+        /correparaiba\.com\.br\/?$/i,  // Homepage
+        /race83\.com\.br\/?$/i,         // Homepage
+    ];
+
+    if (listingPatterns.some(pattern => pattern.test(url))) {
+        return null;
+    }
+
+    return url;
+}
