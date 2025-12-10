@@ -473,6 +473,27 @@ export class CorridasBRProvider implements ProviderScraper {
                 };
             });
 
+            // If we have an external regUrl, try to fetch og:image from there
+            let externalImageUrl: string | null = null;
+            if (details.regUrl && !details.regUrl.includes('corridasbr.com.br')) {
+                try {
+                    const externalPage = await context.newPage();
+                    await externalPage.goto(details.regUrl, { timeout: options.detailTimeoutMs, waitUntil: 'domcontentloaded' });
+                    await externalPage.waitForTimeout(1500);
+
+                    // Extract og:image from external page
+                    externalImageUrl = await externalPage.evaluate(() => {
+                        const ogImage = document.querySelector('meta[property="og:image"]') as HTMLMetaElement;
+                        return ogImage?.content || null;
+                    });
+
+                    await closePage(externalPage);
+                } catch (err) {
+                    // Ignore errors fetching external page - we'll use fallback
+                    providerLog(PROVIDER_NAME, `Could not fetch image from ${details.regUrl?.substring(0, 40)}...`, 'debug');
+                }
+            }
+
             // Parse date
             const date = this.parseDate(details.dateStr || rawEvent.dateStr);
             if (!date) {
@@ -502,7 +523,8 @@ export class CorridasBRProvider implements ProviderScraper {
                 sourceUrl: rawEvent.detailUrl,
                 sourcePlatform: PROVIDER_NAME,
                 sourceEventId: eventId,
-                imageUrl: details.imageUrl,
+                // Prefer external og:image, fallback to corridasbr image
+                imageUrl: externalImageUrl || details.imageUrl,
                 priceText: null,
                 priceMin: null,
             };

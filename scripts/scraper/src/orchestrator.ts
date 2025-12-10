@@ -19,7 +19,7 @@ import {
     correParaibaProvider,
     race83Provider,
 } from './providers';
-import { deduplicateEvents, logDeduplicationSummary, DeduplicationResult } from './utils/deduplication';
+import { deduplicateEvents, fuzzyDeduplicateEvents, logDeduplicationSummary, DeduplicationResult } from './utils/deduplication';
 import { emptyResult, mergeResults } from './providers/base';
 
 /**
@@ -241,10 +241,15 @@ export async function orchestrateProviders(
         }
     }
 
-    // Deduplicate all events
-    log('\n--- Deduplicating events ---');
+    // Deduplicate all events - Pass 1: Exact match
+    log('\n--- Deduplicating events (Pass 1: Exact Match) ---');
     const deduplicationResult = deduplicateEvents(allEvents);
-    logDeduplicationSummary(deduplicationResult);
+    logDeduplicationSummary(deduplicationResult, 'Exact');
+
+    // Deduplicate events - Pass 2: Fuzzy match by title similarity
+    log('\n--- Deduplicating events (Pass 2: Fuzzy Match) ---');
+    const fuzzyResult = fuzzyDeduplicateEvents(deduplicationResult.events, 0.7);
+    logDeduplicationSummary(fuzzyResult, 'Fuzzy');
 
     const totalDurationMs = Date.now() - startTime;
 
@@ -252,18 +257,24 @@ export async function orchestrateProviders(
     const successfulProviders = providerResults.filter(r => !r.error).length;
     const failedProviders = providerResults.filter(r => !!r.error).length;
 
+    const totalDuplicatesRemoved = deduplicationResult.duplicatesRemoved + fuzzyResult.duplicatesRemoved;
+
     const result: OrchestratorResult = {
-        events: deduplicationResult.events,
+        events: fuzzyResult.events,
         providerResults,
-        deduplication: deduplicationResult,
+        deduplication: {
+            events: fuzzyResult.events,
+            duplicatesRemoved: totalDuplicatesRemoved,
+            duplicateDetails: [...deduplicationResult.duplicateDetails, ...fuzzyResult.duplicateDetails],
+        },
         totalDurationMs,
         summary: {
             totalProviders: providers.length,
             successfulProviders,
             failedProviders,
             totalEventsBeforeDedup: allEvents.length,
-            totalEventsAfterDedup: deduplicationResult.events.length,
-            duplicatesRemoved: deduplicationResult.duplicatesRemoved,
+            totalEventsAfterDedup: fuzzyResult.events.length,
+            duplicatesRemoved: totalDuplicatesRemoved,
         },
     };
 

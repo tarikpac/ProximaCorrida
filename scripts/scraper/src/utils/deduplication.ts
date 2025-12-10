@@ -99,28 +99,144 @@ export function deduplicateEvents(events: StandardizedEvent[]): DeduplicationRes
 }
 
 /**
+ * Calculate Jaccard similarity between two sets of words
+ * Returns a value between 0 and 1 (1 = identical)
+ */
+function jaccardSimilarity(set1: Set<string>, set2: Set<string>): number {
+    const intersection = new Set([...set1].filter(x => set2.has(x)));
+    const union = new Set([...set1, ...set2]);
+    return union.size === 0 ? 0 : intersection.size / union.size;
+}
+
+/**
+ * Tokenize a normalized title into words
+ */
+function tokenize(text: string): Set<string> {
+    return new Set(text.toLowerCase().split(/\s+/).filter(w => w.length > 1));
+}
+
+/**
+ * Fuzzy deduplicate events - second pass using string similarity
+ * Groups events by date + city + state, then checks title similarity
+ * 
+ * @param events - Events after first pass deduplication
+ * @param similarityThreshold - Minimum Jaccard similarity to consider duplicates (default 0.7)
+ * @returns Deduplicated events
+ */
+export function fuzzyDeduplicateEvents(
+    events: StandardizedEvent[],
+    similarityThreshold: number = 0.7
+): DeduplicationResult {
+    // Group events by date + city + state (location key)
+    const locationGroups = new Map<string, StandardizedEvent[]>();
+
+    for (const event of events) {
+        const dateStr = event.date.toISOString().split('T')[0];
+        const cityNorm = (event.city || '').toLowerCase().trim();
+        const stateNorm = (event.state || '').toUpperCase();
+        const locationKey = `${dateStr}|${cityNorm}|${stateNorm}`;
+
+        if (!locationGroups.has(locationKey)) {
+            locationGroups.set(locationKey, []);
+        }
+        locationGroups.get(locationKey)!.push(event);
+    }
+
+    const uniqueEvents: StandardizedEvent[] = [];
+    const duplicateDetails: DuplicateInfo[] = [];
+    let duplicatesRemoved = 0;
+
+    // Process each location group
+    for (const [locationKey, group] of locationGroups) {
+        if (group.length === 1) {
+            uniqueEvents.push(group[0]);
+            continue;
+        }
+
+        // Compare titles within the group using similarity
+        const kept: StandardizedEvent[] = [];
+        const processed = new Set<number>();
+
+        for (let i = 0; i < group.length; i++) {
+            if (processed.has(i)) continue;
+
+            const event = group[i];
+            const eventTokens = tokenize(event.title);
+            const duplicatesOfThis: StandardizedEvent[] = [];
+
+            // Check against remaining events in group
+            for (let j = i + 1; j < group.length; j++) {
+                if (processed.has(j)) continue;
+
+                const other = group[j];
+                const otherTokens = tokenize(other.title);
+                const similarity = jaccardSimilarity(eventTokens, otherTokens);
+
+                if (similarity >= similarityThreshold) {
+                    // This is a fuzzy duplicate
+                    duplicatesOfThis.push(other);
+                    processed.add(j);
+                    duplicatesRemoved++;
+                }
+            }
+
+            // Keep the first event (first occurrence by provider priority)
+            kept.push(event);
+            processed.add(i);
+
+            // Log duplicate info if any found
+            if (duplicatesOfThis.length > 0) {
+                duplicateDetails.push({
+                    matchKey: `fuzzy:${locationKey}`,
+                    keptEvent: {
+                        title: event.title,
+                        sourcePlatform: event.sourcePlatform,
+                        sourceUrl: event.sourceUrl,
+                    },
+                    discardedEvents: duplicatesOfThis.map(d => ({
+                        title: d.title,
+                        sourcePlatform: d.sourcePlatform,
+                        sourceUrl: d.sourceUrl,
+                    })),
+                });
+            }
+        }
+
+        uniqueEvents.push(...kept);
+    }
+
+    return {
+        events: uniqueEvents,
+        duplicatesRemoved,
+        duplicateDetails,
+    };
+}
+
+/**
  * Log deduplication results for monitoring
  */
-export function logDeduplicationSummary(result: DeduplicationResult): void {
+export function logDeduplicationSummary(result: DeduplicationResult, phase: string = ''): void {
     const timestamp = new Date().toISOString();
+    const phaseLabel = phase ? ` [${phase}]` : '';
 
-    console.log(`[${timestamp}] [DEDUP] Deduplication complete:`);
-    console.log(`[${timestamp}] [DEDUP]   Total input: ${result.events.length + result.duplicatesRemoved}`);
-    console.log(`[${timestamp}] [DEDUP]   Unique events: ${result.events.length}`);
-    console.log(`[${timestamp}] [DEDUP]   Duplicates removed: ${result.duplicatesRemoved}`);
+    console.log(`[${timestamp}] [DEDUP]${phaseLabel} Deduplication complete:`);
+    console.log(`[${timestamp}] [DEDUP]${phaseLabel}   Total input: ${result.events.length + result.duplicatesRemoved}`);
+    console.log(`[${timestamp}] [DEDUP]${phaseLabel}   Unique events: ${result.events.length}`);
+    console.log(`[${timestamp}] [DEDUP]${phaseLabel}   Duplicates removed: ${result.duplicatesRemoved}`);
 
     if (result.duplicateDetails.length > 0) {
-        console.log(`[${timestamp}] [DEDUP] Duplicate groups found: ${result.duplicateDetails.length}`);
+        console.log(`[${timestamp}] [DEDUP]${phaseLabel} Duplicate groups found: ${result.duplicateDetails.length}`);
 
         // Log first few duplicates for visibility
         const samplesToLog = Math.min(5, result.duplicateDetails.length);
         for (let i = 0; i < samplesToLog; i++) {
             const dup = result.duplicateDetails[i];
-            console.log(`[${timestamp}] [DEDUP]   - "${dup.keptEvent.title}" (${dup.keptEvent.sourcePlatform}) had ${dup.discardedEvents.length} duplicate(s)`);
+            console.log(`[${timestamp}] [DEDUP]${phaseLabel}   - "${dup.keptEvent.title}" (${dup.keptEvent.sourcePlatform}) had ${dup.discardedEvents.length} duplicate(s)`);
         }
 
         if (result.duplicateDetails.length > samplesToLog) {
-            console.log(`[${timestamp}] [DEDUP]   ... and ${result.duplicateDetails.length - samplesToLog} more`);
+            console.log(`[${timestamp}] [DEDUP]${phaseLabel}   ... and ${result.duplicateDetails.length - samplesToLog} more`);
         }
     }
 }
+

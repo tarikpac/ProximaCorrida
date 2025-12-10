@@ -19,6 +19,7 @@ export function removeAccents(text: string): string {
  * - Trim whitespace
  * - Collapse multiple spaces
  * - Remove common prefixes/suffixes that vary between providers
+ * - Remove location suffixes (e.g., "em martins", "- rn", "/ rn")
  */
 export function normalizeTitle(title: string): string {
     if (!title) return '';
@@ -34,6 +35,26 @@ export function normalizeTitle(title: string): string {
     normalized = normalized
         .replace(/^(corrida\s+)?/i, '')
         .replace(/^(\d+[ªºa]?\s+)?(edicao|edição)\s+/i, '');
+
+    // Remove location suffixes that vary between providers
+    // e.g., "em martins", "em joão pessoa", "- rn", "/ rn"
+    // State codes: AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MG, MS, MT, PA, PB, PE, PI, PR, RJ, RN, RO, RR, RS, SC, SE, SP, TO
+    const states = 'ac|al|am|ap|ba|ce|df|es|go|ma|mg|ms|mt|pa|pb|pe|pi|pr|rj|rn|ro|rr|rs|sc|se|sp|to';
+
+    // Remove "- XX" or "/ XX" at end (state codes)
+    normalized = normalized.replace(new RegExp(`\\s*[-/]\\s*(${states})\\s*$`, 'i'), '');
+
+    // Remove "em [cidade]" or "em [cidade] - XX" at end
+    // This is tricky - we want to remove location suffixes but not break titles
+    // Only remove if it looks like a location suffix at the end
+    normalized = normalized.replace(/\s+em\s+[\w\s]+\s*[-/]?\s*\w{0,2}$/i, '');
+
+    // Normalize prepositions - collapse "de de" to "de", remove isolated prepositions
+    // This helps match "emancipação de coronel" with "emancipação coronel"
+    normalized = normalized.replace(/\b(de|da|do|das|dos)\s+(de|da|do|das|dos)\b/gi, '$1');
+
+    // Remove prepositions before proper nouns at end of titles
+    // e.g., "emancipacao de coronel joao" -> would still keep "de" for now
 
     // Collapse multiple spaces
     normalized = normalized.replace(/\s+/g, ' ');
