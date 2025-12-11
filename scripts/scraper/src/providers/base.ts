@@ -134,7 +134,8 @@ export function parseBrazilianDate(dateStr: string): Date | null {
     const parts = dateStr.split('/');
     if (parts.length === 3) {
         const [day, month, year] = parts;
-        const date = new Date(`${year}-${month}-${day}`);
+        // Use T12:00:00 (noon) to prevent timezone offset from shifting the day
+        const date = new Date(`${year}-${month}-${day}T12:00:00`);
         if (!isNaN(date.getTime())) {
             return date;
         }

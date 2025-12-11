@@ -322,7 +322,9 @@ export class BrasilQueCorreProvider implements ProviderScraper {
             const [, day, monthName, year] = match;
             const month = monthNames[monthName.toLowerCase()];
             if (month) {
-                const date = new Date(`${year}-${month}-${day.padStart(2, '0')}`);
+                // Use T12:00:00 (noon) to prevent timezone offset from shifting the day
+                // Without time, JS interprets as midnight UTC which becomes previous day in Brazil (GMT-3)
+                const date = new Date(`${year}-${month}-${day.padStart(2, '0')}T12:00:00`);
                 if (!isNaN(date.getTime())) {
                     return date;
                 }
@@ -335,7 +337,8 @@ export class BrasilQueCorreProvider implements ProviderScraper {
             const [, day, monthName, year] = match2;
             const month = monthNames[monthName.toLowerCase()];
             if (month) {
-                const date = new Date(`${year}-${month}-${day.padStart(2, '0')}`);
+                // Use T12:00:00 (noon) to prevent timezone offset from shifting the day
+                const date = new Date(`${year}-${month}-${day.padStart(2, '0')}T12:00:00`);
                 if (!isNaN(date.getTime())) {
                     return date;
                 }

@@ -3,6 +3,10 @@
 # This is the standalone version that doesn't require the API to be running.
 # Push notifications are sent inline by calling the Lambda API.
 #
+# PARALLEL EXECUTION: Splits Brazilian states into 2 groups for faster scraping
+# - Group 1: AC, AL, AP, AM, BA, CE, DF, ES, GO, MA, MT, MS, MG (13 states - Norte/Centro-Oeste/Nordeste partial)
+# - Group 2: PA, PB, PR, PE, PI, RJ, RN, RS, RO, RR, SC, SP, SE, TO (14 states - Sul/Sudeste/Norte partial)
+#
 # Required Secrets:
 # - DATABASE_URL: Supabase PostgreSQL connection string (with pooler)
 # - DIRECT_URL: Direct PostgreSQL connection string (without pooler)
@@ -19,7 +23,7 @@ on:
   workflow_dispatch:
     inputs:
       state:
-        description: 'Optional: State filter (e.g., PB or PB,PE,RN)'
+        description: 'Optional: State filter (e.g., PB or PB,PE,RN). If set, runs single job with specified states.'
         required: false
         default: ''
       provider:
@@ -32,10 +36,154 @@ on:
         type: boolean
         default: false
 
+# Define state groups as environment variables
+env:
+  # Group 1: AC, AL, AP, AM, BA, CE, DF, ES, GO, MA, MT, MS, MG (13 states)
+  STATES_GROUP_1: 'AC,AL,AP,AM,BA,CE,DF,ES,GO,MA,MT,MS,MG'
+  # Group 2: PA, PB, PR, PE, PI, RJ, RN, RS, RO, RR, SC, SP, SE, TO (14 states)
+  STATES_GROUP_2: 'PA,PB,PR,PE,PI,RJ,RN,RS,RO,RR,SC,SP,SE,TO'
+
 jobs:
-  scrape:
+  # ============================================
+  # Parallel Job 1: States Group 1 (Norte/Centro-Oeste/Nordeste partial)
+  # ============================================
+  scrape-group-1:
     runs-on: ubuntu-latest
-    timeout-minutes: 120  # 2 hours max
+    timeout-minutes: 110  # Slightly less than 2 hours to allow for cleanup
+    # Only run if no specific state filter is provided (scheduled or full manual run)
+    if: ${{ github.event.inputs.state == '' || github.event.inputs.state == null }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: scripts/scraper/package-lock.json
+
+      - name: Install dependencies
+        working-directory: scripts/scraper
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: scripts/scraper
+        run: npx prisma generate
+
+      - name: Install Playwright
+        working-directory: scripts/scraper
+        run: npx playwright install chromium --with-deps
+
+      - name: Build CLI arguments
+        id: args
+        run: |
+          ARGS="--state=${{ env.STATES_GROUP_1 }}"
+          if [ -n "${{ github.event.inputs.provider }}" ]; then
+            ARGS="$ARGS --provider=${{ github.event.inputs.provider }}"
+          fi
+          if [ "${{ github.event.inputs.skip_legacy }}" == "true" ]; then
+            ARGS="$ARGS --skip-legacy"
+          fi
+          echo "cli_args=$ARGS" >> $GITHUB_OUTPUT
+          echo "Running scraper for Group 1 with args: $ARGS"
+
+      - name: Run Scraper - Group 1
+        working-directory: scripts/scraper
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          DETAIL_TIMEOUT_MS: '15000'
+          REG_TIMEOUT_MS: '20000'
+          SCRAPER_EVENT_DELAY_MS: '500'
+          SCRAPER_STALENESS_DAYS: '7'
+          LOG_LEVEL: 'info'
+        run: npx ts-node src/main.ts ${{ steps.args.outputs.cli_args }}
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scraper-logs-group-1
+          path: scripts/scraper/logs/
+          retention-days: 7
+
+  # ============================================
+  # Parallel Job 2: States Group 2 (Sul/Sudeste/Norte partial)
+  # ============================================
+  scrape-group-2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 110  # Slightly less than 2 hours to allow for cleanup
+    # Only run if no specific state filter is provided (scheduled or full manual run)
+    if: ${{ github.event.inputs.state == '' || github.event.inputs.state == null }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: scripts/scraper/package-lock.json
+
+      - name: Install dependencies
+        working-directory: scripts/scraper
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: scripts/scraper
+        run: npx prisma generate
+
+      - name: Install Playwright
+        working-directory: scripts/scraper
+        run: npx playwright install chromium --with-deps
+
+      - name: Build CLI arguments
+        id: args
+        run: |
+          ARGS="--state=${{ env.STATES_GROUP_2 }}"
+          if [ -n "${{ github.event.inputs.provider }}" ]; then
+            ARGS="$ARGS --provider=${{ github.event.inputs.provider }}"
+          fi
+          if [ "${{ github.event.inputs.skip_legacy }}" == "true" ]; then
+            ARGS="$ARGS --skip-legacy"
+          fi
+          echo "cli_args=$ARGS" >> $GITHUB_OUTPUT
+          echo "Running scraper for Group 2 with args: $ARGS"
+
+      - name: Run Scraper - Group 2
+        working-directory: scripts/scraper
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          DETAIL_TIMEOUT_MS: '15000'
+          REG_TIMEOUT_MS: '20000'
+          SCRAPER_EVENT_DELAY_MS: '500'
+          SCRAPER_STALENESS_DAYS: '7'
+          LOG_LEVEL: 'info'
+        run: npx ts-node src/main.ts ${{ steps.args.outputs.cli_args }}
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scraper-logs-group-2
+          path: scripts/scraper/logs/
+          retention-days: 7
+
+  # ============================================
+  # Single Job: When specific state filter is provided
+  # ============================================
+  scrape-filtered:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    # Only run if a specific state filter is provided
+    if: ${{ github.event.inputs.state != '' && github.event.inputs.state != null }}
 
     steps:
       - name: Checkout repository
@@ -74,8 +222,9 @@ jobs:
             ARGS="$ARGS --skip-legacy"
           fi
           echo "cli_args=$ARGS" >> $GITHUB_OUTPUT
+          echo "Running scraper with args: $ARGS"
 
-      - name: Run Multi-Provider Scraper
+      - name: Run Scraper - Filtered
         working-directory: scripts/scraper
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -92,6 +241,6 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: scraper-logs
+          name: scraper-logs-filtered
           path: scripts/scraper/logs/
           retention-days: 7

@@ -390,7 +390,8 @@ export class TicketSportsProvider implements ProviderScraper {
         const brMatch = dateStr.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
         if (brMatch) {
             const [, day, month, year] = brMatch;
-            date = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+            // Use T12:00:00 (noon) to prevent timezone offset from shifting the day
+            date = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00`);
             if (!isNaN(date.getTime())) {
                 return date;
             }
@@ -410,7 +411,8 @@ export class TicketSportsProvider implements ProviderScraper {
             const [, day, monthName, year] = dualDateMatch;
             const month = monthNames[monthName.toLowerCase()];
             if (month) {
-                date = new Date(`${year}-${month}-${day.padStart(2, '0')}`);
+                // Use T12:00:00 (noon) to prevent timezone offset from shifting the day
+                date = new Date(`${year}-${month}-${day.padStart(2, '0')}T12:00:00`);
                 if (!isNaN(date.getTime())) {
                     return date;
                 }
@@ -423,7 +425,8 @@ export class TicketSportsProvider implements ProviderScraper {
             const [, day, monthName, year] = ptMatch;
             const month = monthNames[monthName.toLowerCase()];
             if (month) {
-                date = new Date(`${year}-${month}-${day.padStart(2, '0')}`);
+                // Use T12:00:00 (noon) to prevent timezone offset from shifting the day
+                date = new Date(`${year}-${month}-${day.padStart(2, '0')}T12:00:00`);
                 if (!isNaN(date.getTime())) {
                     return date;
                 }
