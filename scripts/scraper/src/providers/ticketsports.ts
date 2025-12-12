@@ -306,7 +306,23 @@ export class TicketSportsProvider implements ProviderScraper {
 
                 // Find date (usually in a time element or structured div)
                 const timeEl = document.querySelector('time');
-                const dateStr = timeEl?.getAttribute('datetime') || timeEl?.textContent || '';
+                let dateStr = timeEl?.getAttribute('datetime') || timeEl?.textContent || '';
+
+                // If time element has no useful date, search in body text
+                if (!dateStr || dateStr.includes('Datas') || dateStr.includes('Etapas')) {
+                    const bodyText = document.body.innerText;
+                    // Try to find DD/MM/YYYY format first
+                    const ddmmMatch = bodyText.match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+                    if (ddmmMatch) {
+                        dateStr = ddmmMatch[1];
+                    } else {
+                        // Try DD de MÊS de YYYY format
+                        const ptMatch = bodyText.match(/(\d{1,2}\s+de\s+\w+\s+(?:de\s+)?\d{4})/i);
+                        if (ptMatch) {
+                            dateStr = ptMatch[1];
+                        }
+                    }
+                }
 
                 // Find location with maps link
                 const mapsLink = document.querySelector('a[href*="google.com/maps"]');
@@ -379,10 +395,15 @@ export class TicketSportsProvider implements ProviderScraper {
     private parseDate(dateStr: string): Date | null {
         if (!dateStr) return null;
 
-        // Try ISO format first
-        let date = new Date(dateStr);
-        if (!isNaN(date.getTime())) {
-            return date;
+        // Try ISO format first (YYYY-MM-DD from datetime attribute)
+        // Must add T12:00:00 to prevent timezone issues
+        const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (isoMatch) {
+            const [, year, month, day] = isoMatch;
+            const date = new Date(`${year}-${month}-${day}T12:00:00`);
+            if (!isNaN(date.getTime())) {
+                return date;
+            }
         }
 
         // Try DD/MM/YYYY format (single date or first date of dual format like "01/08/2026 e 02/08/2026")
@@ -391,7 +412,7 @@ export class TicketSportsProvider implements ProviderScraper {
         if (brMatch) {
             const [, day, month, year] = brMatch;
             // Use T12:00:00 (noon) to prevent timezone offset from shifting the day
-            date = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00`);
+            const date = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00`);
             if (!isNaN(date.getTime())) {
                 return date;
             }
@@ -412,7 +433,7 @@ export class TicketSportsProvider implements ProviderScraper {
             const month = monthNames[monthName.toLowerCase()];
             if (month) {
                 // Use T12:00:00 (noon) to prevent timezone offset from shifting the day
-                date = new Date(`${year}-${month}-${day.padStart(2, '0')}T12:00:00`);
+                const date = new Date(`${year}-${month}-${day.padStart(2, '0')}T12:00:00`);
                 if (!isNaN(date.getTime())) {
                     return date;
                 }
@@ -426,7 +447,7 @@ export class TicketSportsProvider implements ProviderScraper {
             const month = monthNames[monthName.toLowerCase()];
             if (month) {
                 // Use T12:00:00 (noon) to prevent timezone offset from shifting the day
-                date = new Date(`${year}-${month}-${day.padStart(2, '0')}T12:00:00`);
+                const date = new Date(`${year}-${month}-${day.padStart(2, '0')}T12:00:00`);
                 if (!isNaN(date.getTime())) {
                     return date;
                 }

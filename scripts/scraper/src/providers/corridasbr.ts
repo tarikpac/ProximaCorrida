@@ -493,11 +493,20 @@ export class CorridasBRProvider implements ProviderScraper {
             if (details.regUrl && !details.regUrl.includes('corridasbr.com.br')) {
                 try {
                     const externalPage = await context.newPage();
-                    await externalPage.goto(details.regUrl, { timeout: options.detailTimeoutMs, waitUntil: 'domcontentloaded' });
+
+                    // Special handling for SESC-RS: redirect to ecommerce
+                    let targetUrl = details.regUrl;
+                    if (details.regUrl.includes('sesc-rs.com.br') && !details.regUrl.includes('ecommerce.sesc-rs.com.br')) {
+                        // Try the ecommerce catalog page directly instead
+                        // The actual event pages are on ecommerce.sesc-rs.com.br
+                        providerLog(PROVIDER_NAME, `SESC-RS detected, URL may not have direct image`, 'debug');
+                    }
+
+                    await externalPage.goto(targetUrl, { timeout: options.detailTimeoutMs * 1.5, waitUntil: 'domcontentloaded' });
                     await externalPage.waitForTimeout(2000);
 
-                    // Extract image from external page with multiple strategies
-                    externalImageUrl = await externalPage.evaluate(() => {
+                    // Extract image from external page with platform-specific strategies
+                    externalImageUrl = await externalPage.evaluate((url) => {
                         // Strategy 1: og:image meta tag (most reliable)
                         const ogImage = document.querySelector('meta[property="og:image"]') as HTMLMetaElement;
                         if (ogImage?.content) {
@@ -510,7 +519,26 @@ export class CorridasBRProvider implements ProviderScraper {
                             return twitterImage.content;
                         }
 
-                        // Strategy 3: Find largest image on page (likely the event banner)
+                        // Strategy 3: Platform-specific selectors
+                        // Minhas Inscrições
+                        if (url.includes('minhasinscricoes')) {
+                            const bannerImg = document.querySelector('.image-banner, img[alt*="Banner"]') as HTMLImageElement;
+                            if (bannerImg?.src) return bannerImg.src;
+                        }
+
+                        // SESC-RS ecommerce
+                        if (url.includes('sesc-rs') || url.includes('sescnet')) {
+                            const sescImg = document.querySelector('.EVEImagemCardProduto, img[src*="PRODUTOECOMMERCE"]') as HTMLImageElement;
+                            if (sescImg?.src) return sescImg.src;
+                        }
+
+                        // TicketSports
+                        if (url.includes('ticketsports')) {
+                            const tsImg = document.querySelector('.event-banner img, .thumb-event') as HTMLImageElement;
+                            if (tsImg?.src) return tsImg.src;
+                        }
+
+                        // Strategy 4: Find largest image on page (likely the event banner)
                         const images = Array.from(document.querySelectorAll('img'));
                         let bestImage: HTMLImageElement | null = null;
                         let bestScore = 0;
@@ -528,11 +556,15 @@ export class CorridasBRProvider implements ProviderScraper {
                             if (src.includes('logo') || src.includes('icon') || src.includes('avatar')) continue;
                             if (src.includes('facebook') || src.includes('instagram') || src.includes('whatsapp')) continue;
                             if (src.includes('loading') || src.includes('placeholder')) continue;
+                            if (src.includes('Masterpag') || src.includes('Credencial') || src.includes('Rodape')) continue;
 
-                            // Prefer images with event-like keywords
+                            // Prefer images with event-like keywords or from known good sources
                             let score = area;
                             if (src.includes('banner') || src.includes('cartaz') || src.includes('evento')) {
                                 score *= 2;
+                            }
+                            if (src.includes('PRODUTOECOMMERCE') || src.includes('Capas') || src.includes('siteimages')) {
+                                score *= 3; // Known event image paths
                             }
 
                             if (score > bestScore) {
@@ -542,7 +574,7 @@ export class CorridasBRProvider implements ProviderScraper {
                         }
 
                         return bestImage?.src || null;
-                    });
+                    }, targetUrl);
 
                     // Validate the extracted image URL
                     if (externalImageUrl) {
@@ -552,6 +584,9 @@ export class CorridasBRProvider implements ProviderScraper {
                             /placeholder/i,
                             /default/i,
                             /logo.*site/i,
+                            /Masterpag\.svg/i,  // SESC header logo
+                            /Credencial\.svg/i, // SESC credential image
+                            /Rodape\.svg/i,     // SESC footer logo
                         ];
 
                         if (badPatterns.some(p => p.test(externalImageUrl!))) {
@@ -616,7 +651,8 @@ export class CorridasBRProvider implements ProviderScraper {
         const brMatch = dateStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
         if (brMatch) {
             const [, day, month, year] = brMatch;
-            const date = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+            // Use T12:00:00 (noon) to prevent timezone offset from shifting the day
+            const date = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T12:00:00`);
             if (!isNaN(date.getTime())) {
                 return date;
             }
